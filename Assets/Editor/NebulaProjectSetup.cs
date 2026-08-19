@@ -270,7 +270,6 @@ namespace Nebula.EditorTools
             PlayerSettings.Android.renderOutsideSafeArea = false;
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Android, ManagedStrippingLevel.Low);
-            PlayerSettings.SetMobileMTRendering(NamedBuildTarget.Android, true);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[]
             {
                 UnityEngine.Rendering.GraphicsDeviceType.Vulkan,
