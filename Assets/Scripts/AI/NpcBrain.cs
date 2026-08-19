@@ -124,13 +124,23 @@ namespace Nebula.AI
                 if (_reportDelay <= 0f && _pendingReportVictim >= 0)
                 {
                     var victim = Match.PlayerById(_pendingReportVictim);
-                    _pendingReportVictim = -1;
-                    if (victim != null && victim.HasUnreportedBody &&
-                        Vector3.Distance(Owner.Position, victim.BodyPosition) < Match.Settings.ReportRange + 1.5f)
+                    if (victim != null && victim.HasUnreportedBody)
                     {
-                        Match.TryReport(Owner, victim);
-                        return;
+                        // a body is usually spotted from across the room: walk up to it first
+                        _goal = new NpcGoal
+                        {
+                            Kind = GoalKind.ReportBody,
+                            Position = victim.BodyPosition,
+                            Deck = victim.BodyDeck,
+                            TargetId = victim.Id,
+                            RoomId = victim.BodyRoomId,
+                            PanelIndex = -1,
+                            Expiry = Match.MatchTime + 30f,
+                        };
+                        _goalTimer = 30f;
+                        ApplyGoalDestination();
                     }
+                    else _pendingReportVictim = -1;
                 }
             }
 
@@ -185,6 +195,13 @@ namespace Nebula.AI
             // a hunt or repair goal is re-evaluated aggressively; a task goal is sticky
             if (_goal.Kind == GoalKind.Hunt || _goal.Kind == GoalKind.FixSabotage || _goal.Kind == GoalKind.Follow)
                 goalDone = true;
+
+            // reporting a body always takes priority until it is done or the body is gone
+            if (_goal.Kind == GoalKind.ReportBody)
+            {
+                var pending = Match.PlayerById(_goal.TargetId);
+                goalDone = pending == null || !pending.HasUnreportedBody;
+            }
 
             if (goalDone)
             {
@@ -388,6 +405,26 @@ namespace Nebula.AI
                         Match.TryEmergency(Owner);
                         _goal = NpcGoal.Idle;
                         actor.Motor.SetInput(Vector2.zero);
+                        return;
+                    }
+                    break;
+                }
+
+                case GoalKind.ReportBody:
+                {
+                    var victim = Match.PlayerById(_goal.TargetId);
+                    if (victim == null || !victim.HasUnreportedBody)
+                    {
+                        _pendingReportVictim = -1;
+                        _goal = NpcGoal.Idle;
+                        break;
+                    }
+                    if (Vector3.Distance(Owner.Position, victim.BodyPosition) <= Match.Settings.ReportRange)
+                    {
+                        actor.Motor.SetInput(Vector2.zero);
+                        _pendingReportVictim = -1;
+                        _goal = NpcGoal.Idle;
+                        Match.TryReport(Owner, victim);
                         return;
                     }
                     break;
