@@ -58,12 +58,16 @@ jobs:
           sed -i 's/AndroidArchitecture.ARMv7 | AndroidArchitecture.ARM64/AndroidArchitecture.ARM64/' "$f"
           grep -n "targetArchitectures" "$f"
 
+      - name: Поставить Unity Hub и починить путь к нему
+        uses: ./.github/actions/unity-hub
+
       - name: Установить Unity с модулем Android
         uses: buildalon/unity-setup@v2
         with:
           version-file: ProjectSettings/ProjectVersion.txt
           build-targets: Android
           cache-installation: true
+          auto-update-hub: false
 
       - name: Активировать лицензию Unity
         uses: buildalon/activate-unity-license@v2

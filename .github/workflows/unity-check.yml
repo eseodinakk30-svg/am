@@ -31,12 +31,16 @@ jobs:
           [ "$fail" = "1" ] && { echo "Инструкция: docs/BUILD.md"; exit 1; }
           echo "Секреты на месте."
 
+      - name: Поставить Unity Hub и починить путь к нему
+        uses: ./.github/actions/unity-hub
+
       - name: Установить Unity
         uses: buildalon/unity-setup@v2
         with:
           version-file: ProjectSettings/ProjectVersion.txt
           build-targets: StandaloneLinux64
           cache-installation: true
+          auto-update-hub: false
 
       - name: Активировать лицензию Unity
         uses: buildalon/activate-unity-license@v2

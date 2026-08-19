@@ -1,0 +1,58 @@
+# Unity Hub 3.20+ ставится в /usr/lib/unityhub, а buildalon/unity-setup
+# всё ещё ищет бинарник по старому пути /opt/unityhub/unityhub и падает с
+# ENOENT ещё до установки редактора. Ставим Hub сами, находим настоящий
+# путь и подкладываем его двумя способами:
+#   * UNITY_HUB_PATH — его читает unity-cli внутри всех экшенов Buildalon;
+#   * симлинк /opt/unityhub/unityhub — на него жёстко ссылается обёртка
+#     /usr/bin/unity-hub, которую экшен создаёт для запуска под xvfb.
+name: "Unity Hub"
+description: "Ставит Unity Hub и чинит путь к нему для экшенов Buildalon"
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+
+        if ! command -v unityhub >/dev/null 2>&1; then
+          echo "::group::Установка Unity Hub"
+          curl -fsSL https://hub.unity3d.com/linux/keys/public \
+            | gpg --dearmor \
+            | sudo tee /usr/share/keyrings/Unity_Technologies_ApS.gpg >/dev/null
+          echo "deb [signed-by=/usr/share/keyrings/Unity_Technologies_ApS.gpg] https://hub.unity3d.com/linux/repos/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/unityhub.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends unityhub xvfb
+          echo "::endgroup::"
+        fi
+
+        echo "Файлы пакета unityhub:"
+        dpkg -L unityhub | grep -E '/unityhub$' || true
+
+        # Настоящий бинарник — единственный исполняемый ELF среди файлов пакета
+        # с именем unityhub; /usr/bin/unityhub у свежих версий это shell-обёртка.
+        hub=""
+        while read -r f; do
+          if [ -f "$f" ] && [ -x "$f" ] && file -b "$f" | grep -q ELF; then hub="$f"; break; fi
+        done < <(dpkg -L unityhub | grep -E '/unityhub$')
+
+        if [ -z "$hub" ]; then
+          for c in /usr/lib/unityhub/unityhub /opt/unityhub/unityhub; do
+            if [ -x "$c" ]; then hub="$c"; break; fi
+          done
+        fi
+
+        if [ -z "$hub" ]; then
+          echo "::error ::Не найден исполняемый файл Unity Hub"
+          exit 1
+        fi
+        echo "Unity Hub: $hub"
+
+        sudo chmod -R 777 "$(dirname "$hub")"
+        sudo mkdir -p /opt/unityhub
+        if [ ! -e /opt/unityhub/unityhub ]; then
+          sudo ln -s "$hub" /opt/unityhub/unityhub
+          echo "Совместимость: /opt/unityhub/unityhub -> $hub"
+        fi
+
+        echo "UNITY_HUB_PATH=$hub" >> "$GITHUB_ENV"
