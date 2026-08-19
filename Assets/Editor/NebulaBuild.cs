@@ -47,6 +47,7 @@ namespace Nebula.EditorTools
             {
                 Debug.Log($"[Nebula Nine] Build OK: {summary.outputPath} " +
                           $"({summary.totalSize / (1024 * 1024)} MB, {summary.totalTime.TotalSeconds:F0} s)");
+                if (Application.isBatchMode) EditorApplication.Exit(0);
             }
             else
             {

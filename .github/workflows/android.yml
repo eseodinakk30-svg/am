@@ -1,0 +1,79 @@
+# Шаг 2 из 2: сборка Android APK и публикация в Releases.
+# Запускается вручную (Actions -> "2. Сборка APK" -> Run workflow)
+# или автоматически при пуше тега вида v1.0.0.
+name: "2. Сборка APK"
+
+on:
+  workflow_dispatch:
+    inputs:
+      unityVersion:
+        description: "Версия Unity (если у GameCI нет образа — впиши другую 2022.3.x)"
+        required: true
+        default: "2022.3.62f1"
+      release:
+        description: "Опубликовать APK в Releases"
+        type: boolean
+        default: true
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    name: Android (IL2CPP, ARMv7 + ARM64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+
+    steps:
+      - name: Освободить место на раннере
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc || true
+          df -h /
+
+      - uses: actions/checkout@v4
+
+      - name: Кэш Library
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-Android-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-Android-
+            Library-
+
+      - name: Сборка Unity
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: ${{ github.event.inputs.unityVersion || '2022.3.62f1' }}
+          targetPlatform: Android
+          buildMethod: Nebula.EditorTools.NebulaBuild.AndroidApk
+          allowDirtyBuild: true
+
+      - name: Собрать APK в одну папку
+        run: |
+          mkdir -p out
+          find . -name "*.apk" -not -path "./out/*" -exec cp -v {} out/ \; || true
+          ls -la out
+
+      - name: Выложить APK как артефакт
+        uses: actions/upload-artifact@v4
+        with:
+          name: NebulaNine-APK
+          path: out/*.apk
+          if-no-files-found: error
+
+      - name: Опубликовать в Releases
+        if: ${{ github.event.inputs.release != 'false' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="apk-$(date -u +%Y%m%d-%H%M)"
+          gh release create "$TAG" out/*.apk \
+            --title "Nebula Nine — APK ($TAG)" \
+            --notes "Сборка станции N-9. Скачай .apk и установи (потребуется разрешить установку из неизвестных источников)."

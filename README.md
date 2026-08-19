@@ -27,11 +27,15 @@
 
 ### Сборка APK
 
-Меню **Nebula Nine → Build Android (APK)** (или AAB), либо из командной строки:
+**С компьютера:** меню **Nebula Nine → Build Android (APK)** (или AAB), либо из консоли:
 
 ```
 Unity -batchmode -quit -projectPath . -executeMethod Nebula.EditorTools.NebulaBuild.AndroidApk
 ```
+
+**Без компьютера, прямо с телефона:** в репозитории настроены GitHub Actions —
+сборка идёт в облаке, готовый APK попадает в Releases.
+Пошаговая инструкция: [`docs/BUILD.md`](docs/BUILD.md).
 
 ---
 
