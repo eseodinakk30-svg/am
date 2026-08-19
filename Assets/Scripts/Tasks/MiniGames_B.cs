@@ -52,7 +52,7 @@ namespace Nebula.Tasks
         private void SpawnTarget()
         {
             var pos = new Vector2(Rng.Range(-390f, 390f), Rng.Range(-190f, 175f));
-            var img = UIKit.Sprite(Root, "Target", Art.Circle(96, _moving ? 0f : 14f), pos, new Vector2(78f, 78f), _color);
+            var img = UIKit.Icon(Root, "Target", Art.Circle(96, _moving ? 0f : 14f), pos, new Vector2(78f, 78f), _color);
             img.raycastTarget = true;
             var t = new Target
             {
@@ -146,7 +146,7 @@ namespace Nebula.Tasks
                 float y = Mathf.Sin(phase + i * 0.8f) * 130f + Rng.Range(-25f, 25f);
                 var p = new Vector2(x + step * i, y);
                 _points.Add(p);
-                var dot = UIKit.Sprite(Root, "Node", Art.Circle(64, 10f), p, new Vector2(56f, 56f),
+                var dot = UIKit.Icon(Root, "Node", Art.Circle(64, 10f), p, new Vector2(56f, 56f),
                     i == 0 ? Art.Good : new Color(_color.r, _color.g, _color.b, 0.45f));
                 _dots.Add(dot);
             }
@@ -155,13 +155,13 @@ namespace Nebula.Tasks
             {
                 var a = _points[i];
                 var b = _points[i + 1];
-                var line = UIKit.Sprite(Root, "Line", Art.SolidSprite(), (a + b) * 0.5f,
+                var line = UIKit.Icon(Root, "Line", Art.SolidSprite(), (a + b) * 0.5f,
                     new Vector2(Vector2.Distance(a, b), 6f), new Color(_color.r, _color.g, _color.b, 0.22f));
                 line.rectTransform.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(b.y - a.y, b.x - a.x) * Mathf.Rad2Deg);
                 line.transform.SetSiblingIndex(1);
             }
 
-            _tool = UIKit.Sprite(Root, "Tool", Art.Circle(64), _points[0], new Vector2(46f, 46f), Art.Accent);
+            _tool = UIKit.Icon(Root, "Tool", Art.Circle(64), _points[0], new Vector2(46f, 46f), Art.Accent);
 
             var relay = UIKit.AddPointer(field.gameObject);
             relay.Down += e => { _dragging = true; Move(e); };
@@ -296,10 +296,10 @@ namespace Nebula.Tasks
             _b = UIKit.Slider(Root, new Vector2(250f, 30f), new Vector2(66f, 260f), 0f, 1f, Rng.Range(0.1f, 0.9f), null, true);
 
             UIKit.Panel(Root, "GaugeBg", new Vector2(0f, 30f), new Vector2(300f, 300f), new Color(0.06f, 0.08f, 0.12f, 0.95f), 150);
-            UIKit.Sprite(Root, "TargetMark", Art.SolidSprite(),
+            UIKit.Icon(Root, "TargetMark", Art.SolidSprite(),
                 new Vector2(Mathf.Cos(Mathf.PI * (1f - _target)) * 105f, 30f + Mathf.Sin(Mathf.PI * (1f - _target)) * 105f),
                 new Vector2(22f, 22f), Art.Good);
-            _needle = UIKit.Sprite(Root, "Needle", Art.SolidSprite(), new Vector2(0f, 30f), new Vector2(8f, 120f), Art.AccentWarm);
+            _needle = UIKit.Icon(Root, "Needle", Art.SolidSprite(), new Vector2(0f, 30f), new Vector2(8f, 120f), Art.AccentWarm);
 
             _readout = UIKit.Label(Root, "", new Vector2(0f, -140f), new Vector2(700f, 44f), 26, TextAnchor.MiddleCenter, Art.TextDim);
         }
@@ -356,9 +356,9 @@ namespace Nebula.Tasks
             _targetPos = new Vector2(Rng.Range(-250f, 250f), Rng.Range(-120f, 120f));
             _targetVel = Rng.InsideUnitCircle().normalized * _driftSpeed;
 
-            _target = UIKit.Sprite(Root, "Marker", Art.Circle(96, 0f), _targetPos, new Vector2(80f, 80f),
+            _target = UIKit.Icon(Root, "Marker", Art.Circle(96, 0f), _targetPos, new Vector2(80f, 80f),
                 new Color(0.95f, 0.42f, 0.3f, 0.85f));
-            _cross = UIKit.Sprite(Root, "Cross", Art.Circle(96, 10f), Vector2.zero, new Vector2(120f, 120f), Art.Accent);
+            _cross = UIKit.Icon(Root, "Cross", Art.Circle(96, 10f), Vector2.zero, new Vector2(120f, 120f), Art.Accent);
             _progressBar = UIKit.Bar(Root, new Vector2(0f, -215f), new Vector2(600f, 26f),
                 new Color(0f, 0f, 0f, 0.5f), Art.Good, 8);
 
@@ -419,11 +419,11 @@ namespace Nebula.Tasks
         protected override void Build()
         {
             UIKit.PanelStretch(Root, "Field", new Color(0.04f, 0.07f, 0.10f, 0.9f), 20, 8f);
-            _ring = UIKit.Sprite(Root, "Ring", Art.Circle(256, 12f), new Vector2(0f, 20f), new Vector2(300f, 300f),
+            _ring = UIKit.Icon(Root, "Ring", Art.Circle(256, 12f), new Vector2(0f, 20f), new Vector2(300f, 300f),
                 new Color(_color.r, _color.g, _color.b, 0.55f));
-            _sweep = UIKit.Sprite(Root, "Sweep", Art.SolidSprite(), new Vector2(0f, 20f), new Vector2(620f, 8f),
+            _sweep = UIKit.Icon(Root, "Sweep", Art.SolidSprite(), new Vector2(0f, 20f), new Vector2(620f, 8f),
                 new Color(_color.r, _color.g, _color.b, 0.9f));
-            UIKit.Sprite(Root, "Body", Art.Circle(160), new Vector2(0f, 20f), new Vector2(120f, 120f),
+            UIKit.Icon(Root, "Body", Art.Circle(160), new Vector2(0f, 20f), new Vector2(120f, 120f),
                 new Color(1f, 1f, 1f, 0.14f));
             _readout = UIKit.Label(Root, "", new Vector2(0f, -190f), new Vector2(700f, 46f), 30,
                 TextAnchor.MiddleCenter, Art.TextDim);

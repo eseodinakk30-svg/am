@@ -187,7 +187,7 @@ namespace Nebula.UI
                 var card = UIKit.Panel(_grid, "Slot" + i, pos, new Vector2(cw - 14f, chh - 10f),
                     new Color(0.10f, 0.13f, 0.19f, 0.96f), 14);
 
-                var chip = UIKit.Sprite(card.transform, "Chip", Art.Circle(96), new Vector2(-cw * 0.5f + 46f, 0f),
+                var chip = UIKit.Icon(card.transform, "Chip", Art.Circle(96), new Vector2(-cw * 0.5f + 46f, 0f),
                     new Vector2(58f, 58f), player.Color);
 
                 var name = UIKit.Label(card.transform, player.Label,
@@ -269,7 +269,7 @@ namespace Nebula.UI
             for (int i = slot.VoteMarks.childCount - 1; i >= 0; i--) Destroy(slot.VoteMarks.GetChild(i).gameObject);
             for (int i = 0; i < votes && i < 8; i++)
             {
-                UIKit.Sprite(slot.VoteMarks, "V", Art.Circle(32), new Vector2(-90f + i * 24f, 0f),
+                UIKit.Icon(slot.VoteMarks, "V", Art.Circle(32), new Vector2(-90f + i * 24f, 0f),
                     new Vector2(20f, 20f), _match.Settings.AnonymousVotes ? Art.TextDim : Art.AccentWarm);
             }
         }

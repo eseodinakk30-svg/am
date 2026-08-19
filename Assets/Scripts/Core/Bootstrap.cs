@@ -56,6 +56,7 @@ namespace Nebula.Core
 
             QualityManager.Apply(profile.Quality);
             SoundBank.SfxVolume = profile.SfxVolume;
+            SoundBank.Warmup();
             Application.targetFrameRate = profile.TargetFps;
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
             Screen.orientation = ScreenOrientation.AutoRotation;

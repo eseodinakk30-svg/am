@@ -66,7 +66,7 @@ namespace Nebula.UI
 
             _killButton = UIKit.CircleButton(_root, "УБИТЬ", anchor, new Vector2(sx * -330f, 170f), 150f,
                 new Color(0.86f, 0.24f, 0.26f, 0.92f), () => _player.DoKill(), out _killLabel);
-            _killCooldownRing = UIKit.Sprite(_killButton.transform, "Cd", Art.Circle(160), Vector2.zero,
+            _killCooldownRing = UIKit.Icon(_killButton.transform, "Cd", Art.Circle(160), Vector2.zero,
                 new Vector2(150f, 150f), new Color(0f, 0f, 0f, 0.55f));
             _killCooldownRing.type = Image.Type.Filled;
             _killCooldownRing.fillMethod = Image.FillMethod.Radial360;

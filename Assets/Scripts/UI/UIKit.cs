@@ -77,7 +77,7 @@ namespace Nebula.UI
             return img;
         }
 
-        public static Image Sprite(Transform parent, string name, Sprite sprite, Vector2 pos, Vector2 size, Color color)
+        public static Image Icon(Transform parent, string name, Sprite sprite, Vector2 pos, Vector2 size, Color color)
         {
             var rt = Node(parent, name, pos, size);
             var img = rt.gameObject.AddComponent<Image>();
@@ -105,11 +105,11 @@ namespace Nebula.UI
             return t;
         }
 
-        public static Button Button(Transform parent, string caption, Vector2 pos, Vector2 size, Action onClick,
+        public static UnityEngine.UI.Button Button(Transform parent, string caption, Vector2 pos, Vector2 size, Action onClick,
             Color? bg = null, int fontSize = 28, int radius = 16)
         {
             var img = Panel(parent, "Button_" + caption, pos, size, bg ?? Art.PanelSoft, radius);
-            var btn = img.gameObject.AddComponent<Button>();
+            var btn = img.gameObject.AddComponent<UnityEngine.UI.Button>();
             btn.targetGraphic = img;
 
             var colors = btn.colors;
@@ -143,7 +143,7 @@ namespace Nebula.UI
             img.sprite = Art.Circle(128);
             img.color = color;
 
-            var btn = rt.gameObject.AddComponent<Button>();
+            var btn = rt.gameObject.AddComponent<UnityEngine.UI.Button>();
             btn.targetGraphic = img;
             if (onClick != null)
             {
@@ -175,11 +175,11 @@ namespace Nebula.UI
             return img;
         }
 
-        public static Slider Slider(Transform parent, Vector2 pos, Vector2 size, float min, float max, float value,
+        public static UnityEngine.UI.Slider Slider(Transform parent, Vector2 pos, Vector2 size, float min, float max, float value,
             Action<float> onChanged, bool vertical = false)
         {
             var rt = Node(parent, "Slider", pos, size);
-            var slider = rt.gameObject.AddComponent<Slider>();
+            var slider = rt.gameObject.AddComponent<UnityEngine.UI.Slider>();
             slider.direction = vertical ? UnityEngine.UI.Slider.Direction.BottomToTop : UnityEngine.UI.Slider.Direction.LeftToRight;
 
             var bg = Panel(rt, "Bg", Vector2.zero, size, new Color(0.06f, 0.08f, 0.12f, 0.9f), 12);
@@ -210,10 +210,10 @@ namespace Nebula.UI
             return slider;
         }
 
-        public static Toggle Toggle(Transform parent, string caption, Vector2 pos, Vector2 size, bool value, Action<bool> onChanged)
+        public static UnityEngine.UI.Toggle Toggle(Transform parent, string caption, Vector2 pos, Vector2 size, bool value, Action<bool> onChanged)
         {
             var rt = Node(parent, "Toggle", pos, size);
-            var toggle = rt.gameObject.AddComponent<Toggle>();
+            var toggle = rt.gameObject.AddComponent<UnityEngine.UI.Toggle>();
 
             var box = Panel(rt, "Box", new Vector2(-size.x * 0.5f + 26f, 0f), new Vector2(40f, 40f),
                 new Color(0.08f, 0.10f, 0.14f, 0.95f), 10);

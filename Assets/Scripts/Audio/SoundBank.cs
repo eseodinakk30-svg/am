@@ -80,6 +80,12 @@ namespace Nebula.Audio
             return clip;
         }
 
+        /// <summary>Pre-generates every clip so no effect hitches on first use mid-match.</summary>
+        public static void Warmup()
+        {
+            foreach (Sfx sfx in System.Enum.GetValues(typeof(Sfx))) Get(sfx);
+        }
+
         public static void Play(Sfx sfx, float volume = 1f, float pitch = 1f)
         {
             var src = Ui2D;

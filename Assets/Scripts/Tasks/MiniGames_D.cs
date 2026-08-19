@@ -42,9 +42,9 @@ namespace Nebula.Tasks
         protected override void Build()
         {
             UIKit.Panel(Root, "Tube", new Vector2(0f, 30f), new Vector2(160f, 420f), new Color(0.05f, 0.07f, 0.11f, 0.96f), 20);
-            _bandImg = UIKit.Sprite(Root, "Band", Art.SolidSprite(), new Vector2(0f, 30f), new Vector2(150f, 96f),
+            _bandImg = UIKit.Icon(Root, "Band", Art.SolidSprite(), new Vector2(0f, 30f), new Vector2(150f, 96f),
                 new Color(0.25f, 0.8f, 0.45f, 0.35f));
-            _needleImg = UIKit.Sprite(Root, "Needle", Art.SolidSprite(), new Vector2(0f, 30f), new Vector2(210f, 14f), Art.AccentWarm);
+            _needleImg = UIKit.Icon(Root, "Needle", Art.SolidSprite(), new Vector2(0f, 30f), new Vector2(210f, 14f), Art.AccentWarm);
 
             _progress = UIKit.Bar(Root, new Vector2(0f, -235f), new Vector2(620f, 26f), new Color(0f, 0f, 0f, 0.5f), Art.Good, 8);
             _readout = UIKit.Label(Root, "", new Vector2(0f, 250f), new Vector2(700f, 44f), 26, TextAnchor.MiddleCenter, Art.TextDim);
@@ -226,11 +226,11 @@ namespace Nebula.Tasks
         private void DrawTile(Transform parent, int mask)
         {
             var color = new Color(0.45f, 0.75f, 0.95f);
-            if ((mask & 1) != 0) UIKit.Sprite(parent, "U", Art.SolidSprite(), new Vector2(0f, 32f), new Vector2(22f, 64f), color);
-            if ((mask & 2) != 0) UIKit.Sprite(parent, "R", Art.SolidSprite(), new Vector2(32f, 0f), new Vector2(64f, 22f), color);
-            if ((mask & 4) != 0) UIKit.Sprite(parent, "D", Art.SolidSprite(), new Vector2(0f, -32f), new Vector2(22f, 64f), color);
-            if ((mask & 8) != 0) UIKit.Sprite(parent, "L", Art.SolidSprite(), new Vector2(-32f, 0f), new Vector2(64f, 22f), color);
-            UIKit.Sprite(parent, "Hub", Art.Circle(48), Vector2.zero, new Vector2(30f, 30f), color);
+            if ((mask & 1) != 0) UIKit.Icon(parent, "U", Art.SolidSprite(), new Vector2(0f, 32f), new Vector2(22f, 64f), color);
+            if ((mask & 2) != 0) UIKit.Icon(parent, "R", Art.SolidSprite(), new Vector2(32f, 0f), new Vector2(64f, 22f), color);
+            if ((mask & 4) != 0) UIKit.Icon(parent, "D", Art.SolidSprite(), new Vector2(0f, -32f), new Vector2(22f, 64f), color);
+            if ((mask & 8) != 0) UIKit.Icon(parent, "L", Art.SolidSprite(), new Vector2(-32f, 0f), new Vector2(64f, 22f), color);
+            UIKit.Icon(parent, "Hub", Art.Circle(48), Vector2.zero, new Vector2(30f, 30f), color);
         }
 
         private void Rotate(int i)
@@ -299,9 +299,9 @@ namespace Nebula.Tasks
 
         protected override void Build()
         {
-            UIKit.Sprite(Root, "Filter", Art.Circle(256, 0f), new Vector2(-190f, 20f), new Vector2(400f, 400f),
+            UIKit.Icon(Root, "Filter", Art.Circle(256, 0f), new Vector2(-190f, 20f), new Vector2(400f, 400f),
                 new Color(0.14f, 0.18f, 0.22f, 0.95f));
-            UIKit.Sprite(Root, "Grill", Art.Circle(256, 20f), new Vector2(-190f, 20f), new Vector2(400f, 400f),
+            UIKit.Icon(Root, "Grill", Art.Circle(256, 20f), new Vector2(-190f, 20f), new Vector2(400f, 400f),
                 new Color(0.35f, 0.45f, 0.55f, 0.7f));
 
             _chute = UIKit.Panel(Root, "Chute", new Vector2(300f, 20f), new Vector2(260f, 320f),
@@ -313,7 +313,7 @@ namespace Nebula.Tasks
             {
                 var offset = Rng.InsideUnitCircle() * 145f;
                 var pos = new Vector2(-190f, 20f) + offset;
-                var img = UIKit.Sprite(Root, "Debris" + i, Art.RoundedRect(10, 48),
+                var img = UIKit.Icon(Root, "Debris" + i, Art.RoundedRect(10, 48),
                     pos, new Vector2(Rng.Range(46f, 78f), Rng.Range(40f, 66f)),
                     Color.Lerp(new Color(0.45f, 0.38f, 0.26f), new Color(0.3f, 0.42f, 0.3f), Rng.Value01()));
                 img.raycastTarget = true;

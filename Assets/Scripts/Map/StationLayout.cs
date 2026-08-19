@@ -258,9 +258,11 @@ namespace Nebula.Map
             Door(D, 30, 39, 4, 1, "cargo");
             Door(D, 60, 39, 4, 1, "servers");
             Door(D, 90, 39, 4, 1, "water");
-            Door(D, 30, 33, 4, 1, "coolant");
-            Door(D, 60, 33, 4, 1, "maintenance");
-            Door(D, 90, 33, 4, 1, "dronebay");
+            // the south rooms sit six cells below the corridor, so their doorways
+            // are short access tunnels rather than single wall openings
+            Door(D, 30, 28, 4, 6, "coolant");
+            Door(D, 60, 28, 4, 6, "maintenance");
+            Door(D, 90, 28, 4, 6, "dronebay");
         }
 
         // ------------------------------------------------------------------ vents

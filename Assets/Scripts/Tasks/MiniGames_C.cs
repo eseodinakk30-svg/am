@@ -120,13 +120,13 @@ namespace Nebula.Tasks
             UIKit.Panel(Root, "Scope", new Vector2(0f, 120f), new Vector2(760f, 220f), new Color(0.03f, 0.07f, 0.05f, 0.96f), 14);
             for (int i = 0; i < 48; i++)
             {
-                var bar = UIKit.Sprite(Root, "W", Art.SolidSprite(),
+                var bar = UIKit.Icon(Root, "W", Art.SolidSprite(),
                     new Vector2(-360f + i * 15.3f, 120f), new Vector2(8f, 10f), new Color(0.35f, 0.95f, 0.55f, 0.9f));
                 _wave.Add(bar);
             }
 
             var knob = UIKit.Panel(Root, "Dial", new Vector2(0f, -110f), new Vector2(210f, 210f), new Color(0.14f, 0.17f, 0.23f, 0.98f), 110);
-            _dial = UIKit.Sprite(knob.transform, "Pointer", Art.SolidSprite(), new Vector2(0f, 58f), new Vector2(12f, 82f), Art.AccentWarm);
+            _dial = UIKit.Icon(knob.transform, "Pointer", Art.SolidSprite(), new Vector2(0f, 58f), new Vector2(12f, 82f), Art.AccentWarm);
             _readout = UIKit.Label(Root, "", new Vector2(0f, -240f), new Vector2(700f, 44f), 26, TextAnchor.MiddleCenter, Art.TextDim);
 
             var relay = UIKit.AddPointer(knob.gameObject);
@@ -369,12 +369,12 @@ namespace Nebula.Tasks
 
                 float target = Rng.Range(0f, 360f);
                 _targets.Add(target);
-                var mark = UIKit.Sprite(Root, "Mark", Art.SolidSprite(),
+                var mark = UIKit.Icon(Root, "Mark", Art.SolidSprite(),
                     pos + new Vector2(Mathf.Sin(target * Mathf.Deg2Rad), Mathf.Cos(target * Mathf.Deg2Rad)) * 118f,
                     new Vector2(24f, 24f), Art.Good);
                 _marks.Add(mark);
 
-                var handle = UIKit.Sprite(body.transform, "Handle", Art.SolidSprite(), new Vector2(0f, 48f), new Vector2(16f, 90f), Art.AccentWarm);
+                var handle = UIKit.Icon(body.transform, "Handle", Art.SolidSprite(), new Vector2(0f, 48f), new Vector2(16f, 90f), Art.AccentWarm);
                 _valves.Add(handle);
                 _angles.Add(Rng.Range(0f, 360f));
                 body.transform.localRotation = Quaternion.Euler(0f, 0f, -_angles[i]);

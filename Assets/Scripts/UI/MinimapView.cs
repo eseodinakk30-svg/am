@@ -99,8 +99,8 @@ namespace Nebula.UI
                 }
             }
 
-            _selfMarker = UIKit.Sprite(_layer, "Self", Art.Circle(48), Vector2.zero, new Vector2(14f, 14f), Color.white);
-            _sabotageMarker = UIKit.Sprite(_layer, "Sabotage", Art.Circle(48, 6f), Vector2.zero, new Vector2(26f, 26f), Art.Danger);
+            _selfMarker = UIKit.Icon(_layer, "Self", Art.Circle(48), Vector2.zero, new Vector2(14f, 14f), Color.white);
+            _sabotageMarker = UIKit.Icon(_layer, "Sabotage", Art.Circle(48, 6f), Vector2.zero, new Vector2(26f, 26f), Art.Danger);
             _sabotageMarker.gameObject.SetActive(false);
 
             if (_deckLabel != null)
@@ -134,7 +134,7 @@ namespace Nebula.UI
                 if (index < _taskMarkers.Count) marker = _taskMarkers[index];
                 else
                 {
-                    marker = UIKit.Sprite(_layer, "Task", Art.Circle(48, 5f), Vector2.zero, new Vector2(18f, 18f),
+                    marker = UIKit.Icon(_layer, "Task", Art.Circle(48, 5f), Vector2.zero, new Vector2(18f, 18f),
                         new Color(0.98f, 0.82f, 0.28f));
                     _taskMarkers.Add(marker);
                 }
@@ -155,7 +155,7 @@ namespace Nebula.UI
                     if (v < _ventMarkers.Count) marker = _ventMarkers[v];
                     else
                     {
-                        marker = UIKit.Sprite(_layer, "Vent", Art.RoundedRect(4, 16), Vector2.zero, new Vector2(11f, 11f),
+                        marker = UIKit.Icon(_layer, "Vent", Art.RoundedRect(4, 16), Vector2.zero, new Vector2(11f, 11f),
                             new Color(0.95f, 0.45f, 0.35f, 0.9f));
                         _ventMarkers.Add(marker);
                     }

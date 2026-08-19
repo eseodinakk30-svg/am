@@ -518,7 +518,7 @@ namespace Nebula.UI
                 var card = UIKit.Panel(_roster, "P" + i, pos, new Vector2(cw - 16f, ch - 8f),
                     p.Role == Role.Infiltrator ? new Color(0.25f, 0.08f, 0.10f, 0.95f) : new Color(0.09f, 0.12f, 0.18f, 0.95f), 12);
 
-                UIKit.Sprite(card.transform, "Chip", Art.Circle(64), new Vector2(-cw * 0.5f + 42f, 0f),
+                UIKit.Icon(card.transform, "Chip", Art.Circle(64), new Vector2(-cw * 0.5f + 42f, 0f),
                     new Vector2(46f, 46f), p.Color);
 
                 string role = p.Role == Role.Infiltrator ? "<color=#EA4B4F>предатель</color>" : "экипаж";

@@ -64,7 +64,7 @@ namespace Nebula.Tasks
                 relay.Up += e => EndDrag(e);
             }
 
-            _rubber = UIKit.Sprite(Root, "Rubber", Art.SolidSprite(), Vector2.zero, new Vector2(10f, 6f), Color.white);
+            _rubber = UIKit.Icon(Root, "Rubber", Art.SolidSprite(), Vector2.zero, new Vector2(10f, 6f), Color.white);
             _rubber.gameObject.SetActive(false);
         }
 
@@ -91,7 +91,7 @@ namespace Nebula.Tasks
                     if (Vector2.Distance(local, target) < 90f && !_linked[_dragging])
                     {
                         _linked[_dragging] = true;
-                        var wire = UIKit.Sprite(Root, "Wire", Art.SolidSprite(), Vector2.zero, new Vector2(10f, 8f), _palette[_dragging]);
+                        var wire = UIKit.Icon(Root, "Wire", Art.SolidSprite(), Vector2.zero, new Vector2(10f, 8f), _palette[_dragging]);
                         wire.transform.SetSiblingIndex(0);
                         StretchBetween(wire.rectTransform, _left[_dragging].rectTransform.anchoredPosition, target);
                         _wires.Add(wire);
@@ -217,7 +217,7 @@ namespace Nebula.Tasks
                     _sliders.Add(s);
                     float target = Rng.Range(0.15f, 0.85f);
                     _targets.Add(target);
-                    var mark = UIKit.Sprite(Root, "Mark", Art.SolidSprite(),
+                    var mark = UIKit.Icon(Root, "Mark", Art.SolidSprite(),
                         new Vector2(x, -20f - 170f + 340f * target), new Vector2(96f, 7f), _color);
                     _marks.Add(mark);
                     if (_labels != null && i < _labels.Length)
@@ -235,7 +235,7 @@ namespace Nebula.Tasks
                     _sliders.Add(s);
                     float target = Rng.Range(0.12f, 0.88f);
                     _targets.Add(target);
-                    var mark = UIKit.Sprite(Root, "Mark", Art.SolidSprite(),
+                    var mark = UIKit.Icon(Root, "Mark", Art.SolidSprite(),
                         new Vector2(40f - 300f + 600f * target, y), new Vector2(7f, 78f), _color);
                     _marks.Add(mark);
                     if (_labels != null && i < _labels.Length)
@@ -428,7 +428,7 @@ namespace Nebula.Tasks
             if (_mustStopInBand)
             {
                 float x = -360f + 720f * _bandCenter;
-                _band = UIKit.Sprite(Root, "Band", Art.SolidSprite(), new Vector2(x, 90f),
+                _band = UIKit.Icon(Root, "Band", Art.SolidSprite(), new Vector2(x, 90f),
                     new Vector2(720f * _bandWidth, 86f), new Color(0.25f, 0.75f, 0.4f, 0.45f));
             }
 
