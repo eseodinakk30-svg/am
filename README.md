@@ -34,7 +34,8 @@ Unity -batchmode -quit -projectPath . -executeMethod Nebula.EditorTools.NebulaBu
 ```
 
 **Без компьютера, прямо с телефона:** в репозитории настроены GitHub Actions —
-сборка идёт в облаке, готовый APK попадает в Releases.
+сборка идёт в облаке, готовый APK попадает в Releases. Нужны только два
+секрета репозитория, `UNITY_EMAIL` и `UNITY_PASSWORD`; файл лицензии не нужен.
 Пошаговая инструкция: [`docs/BUILD.md`](docs/BUILD.md).
 
 ---

@@ -1,15 +1,19 @@
-# Шаг 2 из 2: сборка Android APK и публикация в Releases.
-# Запускается вручную (Actions -> "2. Сборка APK" -> Run workflow)
-# или автоматически при пуше тега вида v1.0.0.
+# Шаг 2: сборка Android APK и публикация в Releases.
+# Actions -> "2. Сборка APK" -> Run workflow. Идёт 40-90 минут.
+#
+# Нужны те же два секрета, что и для быстрой проверки:
+#   UNITY_EMAIL, UNITY_PASSWORD
+# Файл лицензии не нужен — Unity Hub активирует Personal по логину.
 name: "2. Сборка APK"
 
 on:
   workflow_dispatch:
     inputs:
-      unityVersion:
-        description: "Версия Unity (если у GameCI нет образа — впиши другую 2022.3.x)"
-        required: true
-        default: "2022.3.62f1"
+      architectures:
+        description: "Архитектуры: both (ARMv7+ARM64) или arm64 (быстрее вдвое)"
+        type: choice
+        options: [both, arm64]
+        default: both
       release:
         description: "Опубликовать APK в Releases"
         type: boolean
@@ -20,81 +24,93 @@ on:
 
 jobs:
   build:
-    name: Android (IL2CPP, ARMv7 + ARM64)
+    name: Android (IL2CPP)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 150
     permissions:
       contents: write
-    env:
-      UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-      UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
-      UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-      UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Проверить секреты до долгой работы
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         run: |
           fail=0
           [ -z "$UNITY_EMAIL" ]    && { echo "::error ::Нет секрета UNITY_EMAIL (почта аккаунта Unity)"; fail=1; }
           [ -z "$UNITY_PASSWORD" ] && { echo "::error ::Нет секрета UNITY_PASSWORD (пароль аккаунта Unity)"; fail=1; }
-          if [ -z "$UNITY_LICENSE" ] && [ -z "$UNITY_SERIAL" ] && [ ! -f ci/unity.ulf ]; then
-            echo "::error ::Нужен UNITY_LICENSE (содержимое .ulf) либо UNITY_SERIAL, либо файл ci/unity.ulf"
-            fail=1
-          fi
           [ "$fail" = "1" ] && { echo "Инструкция: docs/BUILD.md"; exit 1; }
           echo "Секреты на месте."
 
-      - name: Взять лицензию из ci/unity.ulf, если секрета нет
-        run: |
-          if [ -z "$UNITY_LICENSE" ] && [ -z "$UNITY_SERIAL" ] && [ -f ci/unity.ulf ]; then
-            echo "::warning ::Лицензия читается из файла ci/unity.ulf. Так можно только в приватном репозитории."
-            D="ULF_$(date +%s%N)"
-            { echo "UNITY_LICENSE<<$D"; cat ci/unity.ulf; echo "$D"; } >> "$GITHUB_ENV"
-          fi
-
       - name: Освободить место на раннере
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc || true
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk /opt/ghc \
+                      /usr/local/share/boost /usr/share/swift || true
           df -h /
 
-      - name: Кэш Library
-        uses: actions/cache@v4
-        with:
-          path: Library
-          key: Library-Android-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
-          restore-keys: |
-            Library-Android-
-            Library-
-
-      - name: Сборка Unity
-        uses: game-ci/unity-builder@v4
-        with:
-          unityVersion: ${{ github.event.inputs.unityVersion || '2022.3.62f1' }}
-          targetPlatform: Android
-          buildMethod: Nebula.EditorTools.NebulaBuild.AndroidApk
-          allowDirtyBuild: true
-
-      - name: Собрать APK в одну папку
+      # Сборка только под ARM64 идёт примерно вдвое быстрее: IL2CPP
+      # компилирует нативный код отдельно для каждой архитектуры.
+      - name: Выбрать архитектуры
+        if: ${{ github.event.inputs.architectures == 'arm64' }}
         run: |
-          mkdir -p out
-          find . -name "*.apk" -not -path "./out/*" -exec cp -v {} out/ \; || true
-          ls -la out
+          f=Assets/Editor/NebulaProjectSetup.cs
+          sed -i 's/AndroidArchitecture.ARMv7 | AndroidArchitecture.ARM64/AndroidArchitecture.ARM64/' "$f"
+          grep -n "targetArchitectures" "$f"
+
+      - name: Установить Unity с модулем Android
+        uses: buildalon/unity-setup@v2
+        with:
+          version-file: ProjectSettings/ProjectVersion.txt
+          build-targets: Android
+          cache-installation: true
+
+      - name: Активировать лицензию Unity
+        uses: buildalon/activate-unity-license@v2
+        with:
+          license: Personal
+          username: ${{ secrets.UNITY_EMAIL }}
+          password: ${{ secrets.UNITY_PASSWORD }}
+
+      - name: Собрать APK
+        uses: buildalon/unity-action@v2
+        with:
+          project-path: ${{ github.workspace }}
+          build-target: Android
+          log-name: build-android
+          args: -quit -batchmode -nographics -executeMethod Nebula.EditorTools.NebulaBuild.AndroidApk
+
+      - name: Найти APK
+        id: apk
+        run: |
+          path=$(find Builds -name "*.apk" -print -quit)
+          [ -z "$path" ] && { echo "::error ::APK не найден"; exit 1; }
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+          ls -lh "$path"
 
       - name: Выложить APK как артефакт
         uses: actions/upload-artifact@v4
         with:
-          name: NebulaNine-APK
-          path: out/*.apk
-          if-no-files-found: error
+          name: NebulaNine-apk
+          path: ${{ steps.apk.outputs.path }}
 
-      - name: Опубликовать в Releases
+      - name: Опубликовать APK в Releases
         if: ${{ github.event.inputs.release != 'false' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          APK: ${{ steps.apk.outputs.path }}
         run: |
           TAG="apk-$(date -u +%Y%m%d-%H%M)"
-          gh release create "$TAG" out/*.apk \
-            --title "Nebula Nine — APK ($TAG)" \
-            --notes "Сборка станции N-9. Скачай .apk и установи (потребуется разрешить установку из неизвестных источников)."
+          gh release create "$TAG" "$APK" \
+            --title "Nebula Nine — APK" \
+            --notes "Собрано Unity $(cat ProjectSettings/ProjectVersion.txt | head -1 | cut -d' ' -f2).
+
+          Скачай .apk ниже и установи на телефон (нужно разрешить установку из неизвестных источников)."
+
+      - name: Сохранить лог Unity
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unity-logs-android
+          path: "**/*.log"
+          if-no-files-found: ignore
