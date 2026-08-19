@@ -17,51 +17,54 @@ namespace Nebula.Fx
 {
     public static class Art
     {
-        // ------------------------------------------------------------------ shaders
-        private static Shader _lit, _unlit, _particle, _uiShader;
+        // ------------------------------------------------------------------ materials templates
+        //
+        //  Материалы клонируются из образцов, лежащих в Resources, а не собираются
+        //  из голого Shader.Find.  Причина в сборке: шейдер, добавленный в
+        //  "Always Included Shaders", попадает в плеер СО ВСЕМИ вариантами, а у
+        //  Universal Render Pipeline/Lit их 1 179 648 — сборка на этом падает.
+        //  Материал-ассет тянет за собой только те варианты, которые ему нужны.
+        //  Образцы создаёт NebulaProjectSetup; если их ещё нет (проект открыт
+        //  впервые, настройка не отработала), берётся запасной Shader.Find.
 
-        public static Shader LitShader
+        private static Material _litTpl, _litEmissiveTpl, _unlitTpl, _fadeTpl, _particleTpl;
+        private static Shader _uiShader;
+
+        private static Material Template(ref Material cache, string resourceName, params string[] shaderNames)
         {
-            get
+            if (cache != null) return cache;
+
+            cache = Resources.Load<Material>("Materials/" + resourceName);
+            if (cache != null) return cache;
+
+            foreach (var n in shaderNames)
             {
-                if (_lit == null)
-                {
-                    _lit = Shader.Find("Universal Render Pipeline/Lit")
-                           ?? Shader.Find("Universal Render Pipeline/Simple Lit")
-                           ?? Shader.Find("Standard")
-                           ?? Shader.Find("Diffuse");
-                }
-                return _lit;
+                var sh = Shader.Find(n);
+                if (sh == null) continue;
+                cache = new Material(sh) { name = resourceName, enableInstancing = true };
+                return cache;
             }
+            return null;
         }
 
-        public static Shader UnlitShader
-        {
-            get
-            {
-                if (_unlit == null)
-                {
-                    _unlit = Shader.Find("Universal Render Pipeline/Unlit")
-                             ?? Shader.Find("Unlit/Color")
-                             ?? Shader.Find("Sprites/Default");
-                }
-                return _unlit;
-            }
-        }
+        public static Material LitTemplate => Template(ref _litTpl, "NB_Lit",
+            "Universal Render Pipeline/Simple Lit", "Universal Render Pipeline/Lit", "Standard", "Diffuse");
 
-        public static Shader ParticleShader
-        {
-            get
-            {
-                if (_particle == null)
-                {
-                    _particle = Shader.Find("Universal Render Pipeline/Particles/Unlit")
-                                ?? Shader.Find("Particles/Standard Unlit")
-                                ?? UnlitShader;
-                }
-                return _particle;
-            }
-        }
+        public static Material LitEmissiveTemplate => Template(ref _litEmissiveTpl, "NB_LitEmissive",
+            "Universal Render Pipeline/Simple Lit", "Universal Render Pipeline/Lit", "Standard", "Diffuse");
+
+        public static Material UnlitTemplate => Template(ref _unlitTpl, "NB_Unlit",
+            "Universal Render Pipeline/Unlit", "Unlit/Color", "Sprites/Default");
+
+        public static Material FadeTemplate => Template(ref _fadeTpl, "NB_UnlitFade",
+            "Universal Render Pipeline/Unlit", "Unlit/Color", "Sprites/Default");
+
+        public static Material ParticleTemplate => Template(ref _particleTpl, "NB_Particle",
+            "Universal Render Pipeline/Particles/Unlit", "Particles/Standard Unlit", "Sprites/Default");
+
+        public static Shader LitShader => LitTemplate != null ? LitTemplate.shader : null;
+        public static Shader UnlitShader => UnlitTemplate != null ? UnlitTemplate.shader : null;
+        public static Shader ParticleShader => ParticleTemplate != null ? ParticleTemplate.shader : UnlitShader;
 
         public static Shader UiShader
         {
@@ -143,7 +146,9 @@ namespace Nebula.Fx
             int hash = HashKey(key);
             if (MatCache.TryGetValue(hash, out var cached) && cached != null) return cached;
 
-            var m = new Material(LitShader) { name = "NB_Lit_" + hash, enableInstancing = true };
+            var src = emission > 0.001f ? LitEmissiveTemplate : LitTemplate;
+            if (src == null) return null;
+            var m = new Material(src) { name = "NB_Lit_" + hash, enableInstancing = true };
             SetColor(m, color);
             if (m.HasProperty("_Metallic")) m.SetFloat("_Metallic", metallic);
             if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", smoothness);
@@ -165,7 +170,8 @@ namespace Nebula.Fx
             int hash = HashKey(key);
             if (MatCache.TryGetValue(hash, out var cached) && cached != null) return cached;
 
-            var m = new Material(UnlitShader) { name = "NB_Unlit_" + hash, enableInstancing = true };
+            if (UnlitTemplate == null) return null;
+            var m = new Material(UnlitTemplate) { name = "NB_Unlit_" + hash, enableInstancing = true };
             SetColor(m, color);
             MatCache[hash] = m;
             return m;
@@ -178,7 +184,8 @@ namespace Nebula.Fx
             int hash = HashKey(key);
             if (MatCache.TryGetValue(hash, out var cached) && cached != null) return cached;
 
-            var m = new Material(UnlitShader) { name = "NB_Fade_" + hash, enableInstancing = true };
+            if (FadeTemplate == null) return null;
+            var m = new Material(FadeTemplate) { name = "NB_Fade_" + hash, enableInstancing = true };
             SetColor(m, color);
             MakeTransparent(m);
             MatCache[hash] = m;

@@ -557,7 +557,9 @@ namespace Nebula.Map
             var mf = go.AddComponent<MeshFilter>();
             mf.sharedMesh = Art.Quad;
             var mr = go.AddComponent<MeshRenderer>();
-            var mat = new Material(Art.UnlitShader) { name = "NB_Space" };
+            // клонируем образец, а не создаём из шейдера: иначе нужные варианты
+            // шейдера не попадут в сборку плеера
+            var mat = new Material(Art.UnlitTemplate) { name = "NB_Space" };
             var tex = Art.StarField(512, 90210);
             if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
             if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);

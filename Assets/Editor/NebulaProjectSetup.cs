@@ -25,10 +25,11 @@ namespace Nebula.EditorTools
     public static class NebulaProjectSetup
     {
         public const string QualityFolder = "Assets/Resources/Quality";
+        public const string MaterialFolder = "Assets/Resources/Materials";
         public const string SettingsFolder = "Assets/Settings";
         public const string BootScenePath = "Assets/Scenes/Boot.unity";
         private const string SetupVersionKey = "Nebula.SetupVersion";
-        private const int SetupVersion = 4;
+        private const int SetupVersion = 5;
 
         static NebulaProjectSetup()
         {
@@ -55,6 +56,7 @@ namespace Nebula.EditorTools
                 EnsureFolders();
                 var assets = EnsurePipelineAssets();
                 AssignPipeline(assets);
+                EnsureRuntimeMaterials();
                 EnsureAlwaysIncludedShaders();
                 ConfigurePlayerSettings();
                 ConfigureQualityDefaults();
@@ -80,6 +82,7 @@ namespace Nebula.EditorTools
         {
             EnsureFolder("Assets/Resources");
             EnsureFolder(QualityFolder);
+            EnsureFolder(MaterialFolder);
             EnsureFolder(SettingsFolder);
             EnsureFolder("Assets/Scenes");
         }
@@ -206,14 +209,87 @@ namespace Nebula.EditorTools
             QualitySettings.renderPipeline = null; // per-level override off -> use default
         }
 
+        // ------------------------------------------------------------------ materials
+        // Игра не хранит бинарных ассетов и лепит материалы в рантайме. Но чтобы
+        // нужные варианты шейдеров вообще попали в сборку, где-то должен лежать
+        // материал-образец: Art клонирует его вместо того, чтобы собирать материал
+        // из голого Shader.Find.
+        private static void EnsureRuntimeMaterials()
+        {
+            EnsureFolder(MaterialFolder);
+
+            MakeMaterial("NB_Lit", "Universal Render Pipeline/Simple Lit",
+                         "Universal Render Pipeline/Lit", "Standard", "Diffuse");
+
+            var emissive = MakeMaterial("NB_LitEmissive", "Universal Render Pipeline/Simple Lit",
+                                        "Universal Render Pipeline/Lit", "Standard", "Diffuse");
+            if (emissive != null)
+            {
+                emissive.EnableKeyword("_EMISSION");
+                emissive.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+                if (emissive.HasProperty("_EmissionColor")) emissive.SetColor("_EmissionColor", Color.white);
+                EditorUtility.SetDirty(emissive);
+            }
+
+            MakeMaterial("NB_Unlit", "Universal Render Pipeline/Unlit", "Unlit/Color", "Sprites/Default");
+
+            var fade = MakeMaterial("NB_UnlitFade", "Universal Render Pipeline/Unlit",
+                                    "Unlit/Color", "Sprites/Default");
+            if (fade != null)
+            {
+                if (fade.HasProperty("_Surface")) fade.SetFloat("_Surface", 1f);
+                if (fade.HasProperty("_Blend")) fade.SetFloat("_Blend", 0f);
+                if (fade.HasProperty("_ZWrite")) fade.SetFloat("_ZWrite", 0f);
+                fade.SetOverrideTag("RenderType", "Transparent");
+                fade.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                if (fade.HasProperty("_SrcBlend")) fade.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                if (fade.HasProperty("_DstBlend")) fade.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                fade.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                EditorUtility.SetDirty(fade);
+            }
+
+            MakeMaterial("NB_Particle", "Universal Render Pipeline/Particles/Unlit",
+                         "Particles/Standard Unlit", "Sprites/Default");
+        }
+
+        /// <summary>Создаёт (или чинит) материал-образец на первом найденном шейдере из списка.</summary>
+        private static Material MakeMaterial(string name, params string[] shaderNames)
+        {
+            string path = MaterialFolder + "/" + name + ".mat";
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+
+            Shader shader = null;
+            foreach (var n in shaderNames)
+            {
+                shader = Shader.Find(n);
+                if (shader != null) break;
+            }
+            if (shader == null) return existing;
+
+            if (existing != null)
+            {
+                if (existing.shader != shader)
+                {
+                    existing.shader = shader;
+                    EditorUtility.SetDirty(existing);
+                }
+                return existing;
+            }
+
+            var created = new Material(shader) { name = name, enableInstancing = true };
+            AssetDatabase.CreateAsset(created, path);
+            return created;
+        }
+
         private static void EnsureAlwaysIncludedShaders()
         {
+            // Шейдер из этого списка попадает в сборку СО ВСЕМИ вариантами.
+            // У Universal Render Pipeline/Lit их 1 179 648, и плеер отказывается
+            // собираться. Поэтому здесь остаются только дешёвые шейдеры, а
+            // остальные приходят в сборку через материалы из Resources, которые
+            // тянут за собой лишь те варианты, что действительно используются.
             var names = new[]
             {
-                "Universal Render Pipeline/Lit",
-                "Universal Render Pipeline/Simple Lit",
-                "Universal Render Pipeline/Unlit",
-                "Universal Render Pipeline/Particles/Unlit",
                 "Sprites/Default",
                 "UI/Default",
             };
