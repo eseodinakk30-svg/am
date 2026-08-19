@@ -67,7 +67,6 @@ jobs:
           version-file: ProjectSettings/ProjectVersion.txt
           build-targets: Android
           cache-installation: true
-          auto-update-hub: false
 
       - name: Активировать лицензию Unity
         uses: buildalon/activate-unity-license@v2
