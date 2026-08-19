@@ -43,9 +43,11 @@ jobs:
           [ "$fail" = "1" ] && { echo "Инструкция: docs/BUILD.md"; exit 1; }
           echo "Секреты на месте."
 
+      # Android SDK раннера НЕ трогаем: если докачка компонентов у Unity Hub
+      # опять сорвётся, он послужит запасным путём. Места и без него хватает.
       - name: Освободить место на раннере
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk /opt/ghc \
+          sudo rm -rf /usr/share/dotnet /opt/ghc \
                       /usr/local/share/boost /usr/share/swift || true
           df -h /
 
