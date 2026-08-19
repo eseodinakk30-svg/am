@@ -311,16 +311,18 @@ namespace Nebula.Map
             raw.Add(start);
             raw.Reverse();
 
-            // string pull
+            // String pull, forward scan: extend the segment while line of sight holds.
+            // The obvious backwards search is O(n^2) line-of-sight traces per path,
+            // which is far too expensive with a dozen agents re-pathing on a phone.
             int idx = 0;
             while (idx < raw.Count - 1)
             {
+                int ax = raw[idx] % _w, az = raw[idx] / _w;
                 int best = idx + 1;
-                for (int j = raw.Count - 1; j > idx + 1; j--)
+                for (int j = idx + 2; j < raw.Count; j++)
                 {
-                    int ax = raw[idx] % _w, az = raw[idx] / _w;
-                    int bx = raw[j] % _w, bz = raw[j] / _w;
-                    if (LineOfSightCells(deck, ax, az, bx, bz)) { best = j; break; }
+                    if (!LineOfSightCells(deck, ax, az, raw[j] % _w, raw[j] / _w)) break;
+                    best = j;
                 }
                 int px = raw[best] % _w, pz = raw[best] / _w;
                 result.Add(StationLayout.CellToWorld(deck, px, pz));

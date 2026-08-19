@@ -203,11 +203,21 @@ namespace Nebula.AI
                 goalDone = pending == null || !pending.HasUnreportedBody;
             }
 
+            // An agent standing at a console must not be interrupted by the routine
+            // re-plan, otherwise the work timer restarts every few seconds and the
+            // task never completes.  Only a critical sabotage overrides it.
+            bool busy = _working && (_goal.Kind == GoalKind.DoTask || _goal.Kind == GoalKind.FakeTask);
+            bool critical = Match.Sabotage != null && Match.Sabotage.IsCritical;
+            if (busy && !critical) goalDone = false;
+
             if (goalDone)
             {
+                var previous = _goal;
                 _goal = Owner.Role == Role.Infiltrator ? _impostorPlanner.Plan() : _crewPlanner.Plan();
-                _goalTimer = Rng.Range(2.2f, 4.5f);
-                _working = false;
+                _goalTimer = _goal.Kind == GoalKind.DoTask || _goal.Kind == GoalKind.FakeTask
+                    ? Rng.Range(7f, 11f)
+                    : Rng.Range(2.2f, 4.5f);
+                if (previous.Task == null || previous.Task != _goal.Task) _working = false;
                 ApplyGoalDestination();
             }
 
@@ -490,13 +500,21 @@ namespace Nebula.AI
             actor.Motor.SetInput(Nav.Tick(dt, Owner));
         }
 
+        /// <summary>
+        /// A witness is somebody I can see who ALSO has line of sight to the spot in
+        /// question - a crewmate standing behind a wall from my victim is not a risk,
+        /// and treating them as one made kills essentially impossible.
+        /// </summary>
         private bool AnyVisibleWitness(PlayerState exclude)
         {
+            var spot = exclude != null ? exclude.Position : Owner.Position;
+            var deck = exclude != null ? exclude.Deck : Owner.Deck;
             foreach (var p in Match.Players)
             {
                 if (p.Id == Owner.Id || (exclude != null && p.Id == exclude.Id)) continue;
                 if (!p.IsAlive || p.Role == Role.Infiltrator) continue;
-                if (Match.CanSeePlayer(Owner, p)) return true;
+                if (!Match.CanSeePlayer(Owner, p)) continue;
+                if (Match.CanSee(p, spot, deck)) return true;
             }
             return false;
         }

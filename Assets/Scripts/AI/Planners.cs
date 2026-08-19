@@ -494,8 +494,9 @@ namespace Nebula.AI
                     if (w.Id == self.Id || w.Id == target.Id || !w.IsAlive) continue;
                     if (w.Role == Role.Infiltrator) continue;
                     if (!match.CanSeePlayer(self, w)) continue;      // only people I can see count
-                    witnesses++;
                     nearestWitness = Mathf.Min(nearestWitness, Vector3.Distance(target.Position, w.Position));
+                    // ...and only if they can actually see the victim from where they stand
+                    if (match.CanSee(w, target.Position, target.Deck)) witnesses++;
                 }
 
                 // people I cannot see but recently placed nearby still worry me
@@ -542,10 +543,10 @@ namespace Nebula.AI
                 float commsBonus = match.Sabotage != null && match.Sabotage.CommsDown ? 0.15f : 0f;
 
                 float s = proximity * 1.1f + isolation * 0.9f + escape * 0.55f + lightsBonus + commsBonus;
-                s -= ghostRisk * Mathf.Lerp(0.6f, 1.9f, p.Caution);
+                s -= ghostRisk * Mathf.Lerp(0.5f, 1.5f, p.Caution);
                 s -= cameraRisk * Mathf.Lerp(0.4f, 1.6f, p.Strategy);
                 s -= _brain.Suspicion.Probability(target.Id) * 0.4f;    // do not kill the guy everyone suspects
-                s -= _brain.SelfHeat * 0.7f;
+                s -= _brain.SelfHeat * 0.45f;
 
                 // a strategic infiltrator loves killing where somebody else will be blamed
                 int frameCandidate = FrameCandidateNear(target.RoomId);
