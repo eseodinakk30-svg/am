@@ -262,7 +262,10 @@ namespace Nebula.EditorTools
 
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.nebulainteractive.nebulanine");
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel24;
-            PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
+            // Фиксированный, а не Auto: Auto берёт самый свежий установленный
+            // уровень, и сборка начинает зависеть от того, что именно докачал
+            // Unity Hub на раннере. 34 — то, под что рассчитан 2022.3 LTS.
+            PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevel34;
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARMv7 | AndroidArchitecture.ARM64;
             PlayerSettings.Android.forceInternetPermission = true;   // UDP multiplayer
             PlayerSettings.Android.androidIsGame = true;
