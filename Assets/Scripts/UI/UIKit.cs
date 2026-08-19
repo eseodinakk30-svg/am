@@ -219,7 +219,7 @@ namespace Nebula.UI
                 new Color(0.08f, 0.10f, 0.14f, 0.95f), 10);
             toggle.targetGraphic = box;
 
-            var check = Sprite(box.transform, "Check", Art.RoundedRect(8, 32), Vector2.zero, new Vector2(24f, 24f), Art.Accent);
+            var check = Icon(box.transform, "Check", Art.RoundedRect(8, 32), Vector2.zero, new Vector2(24f, 24f), Art.Accent);
             toggle.graphic = check;
             toggle.isOn = value;
             Label(rt, caption, new Vector2(24f, 0f), new Vector2(size.x - 60f, size.y), 24, TextAnchor.MiddleLeft);

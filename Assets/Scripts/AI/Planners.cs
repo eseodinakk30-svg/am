@@ -321,7 +321,6 @@ namespace Nebula.AI
     public class ImpostorPlanner
     {
         private readonly NpcBrain _brain;
-        private float _lastSabotage = -99f;
         private float _nextKillWindowCheck;
 
         public ImpostorPlanner(NpcBrain brain) { _brain = brain; }
