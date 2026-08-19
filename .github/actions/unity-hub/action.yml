@@ -68,6 +68,3 @@ runs:
         sudo chmod 777 /usr/bin/unity-hub
 
         echo "UNITY_HUB_PATH=$hub" >> "$GITHUB_ENV"
-        unity-hub --headless help >/dev/null 2>&1 \
-          && echo "Проверка: unity-hub запускается." \
-          || echo "::warning ::unity-hub запустился с ненулевым кодом, продолжаем."
