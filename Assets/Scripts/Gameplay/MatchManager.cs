@@ -140,6 +140,7 @@ namespace Nebula.Gameplay
         private void BuildRoster(string localName, int humanSeats)
         {
             Players.Clear();
+            Local = null;
             var colors = new List<int>();
             for (int i = 0; i < ColorBank.Suits.Length; i++) colors.Add(i);
             Rng.Shuffle(colors);
@@ -165,9 +166,6 @@ namespace Nebula.Gameplay
                     p.OutfitIndex = profile.OutfitIndex;
                     p.AccessoryIndex = profile.AccessoryIndex;
                     p.TrailIndex = profile.TrailIndex;
-                    // make sure nobody else grabbed that colour
-                    colors.Remove(p.ColorIndex);
-                    colors.Insert(0, -1);
                     Local = p;
                 }
                 else
@@ -188,13 +186,22 @@ namespace Nebula.Gameplay
 
         private void FixDuplicateColors()
         {
+            int len = ColorBank.Suits.Length;
             var used = new HashSet<int>();
+
+            // the local player keeps the colour chosen in the customisation screen
+            if (Local != null)
+            {
+                Local.ColorIndex = ((Local.ColorIndex % len) + len) % len;
+                used.Add(Local.ColorIndex);
+            }
+
             foreach (var p in Players)
             {
-                int c = p.ColorIndex;
+                if (p == Local) continue;
+                int c = ((p.ColorIndex % len) + len) % len;
                 int guard = 0;
-                while (used.Contains(c) && guard++ < ColorBank.Suits.Length)
-                    c = (c + 1) % ColorBank.Suits.Length;
+                while (used.Contains(c) && guard++ < len) c = (c + 1) % len;
                 p.ColorIndex = c;
                 used.Add(c);
             }

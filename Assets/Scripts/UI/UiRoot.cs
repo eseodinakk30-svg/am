@@ -226,7 +226,13 @@ namespace Nebula.UI
             ShowMenu(false);
 
             var localActor = _match.Local?.View as Characters.Actor;
-            if (localActor != null) _camera.SetTarget(localActor.transform);
+            if (localActor != null)
+            {
+                _camera.SetTarget(localActor.transform);
+                var culler = StationView.Instance != null
+                    ? StationView.Instance.GetComponent<LightCuller>() : null;
+                culler?.SetFocus(localActor.transform);
+            }
 
             _match.Tasks?.RefreshMarkers(_match.Local);
             Audio.MusicDirector.Instance?.SetMood(Audio.MusicMood.Calm);

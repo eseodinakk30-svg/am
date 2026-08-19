@@ -102,6 +102,10 @@ namespace Nebula.Core
             hub.Bind(_match);
 
             _player = matchGo.AddComponent<PlayerController>();
+            matchGo.AddComponent<PerformanceTuner>();
+
+            var culler = stationGo.AddComponent<LightCuller>();
+            culler.Collect(stationGo.transform, null);
 
             var camGo = new GameObject("CameraRig");
             camGo.transform.SetParent(transform, false);
