@@ -1,0 +1,60 @@
+# Шаг 3: быстрая проверка (5-8 минут вместо 40).
+# Unity компилирует весь C# до того, как сможет вызвать -executeMethod,
+# поэтому успешный вызов CompileOnly доказывает, что проект собирается.
+# Запускать это ПЕРЕД сборкой APK: сразу видно и работу лицензии, и ошибки кода.
+name: "3. Быстрая проверка проекта"
+
+on:
+  workflow_dispatch:
+    inputs:
+      unityVersion:
+        required: true
+        default: "2022.3.62f1"
+        description: "Версия Unity"
+
+jobs:
+  compile:
+    name: Компиляция C#
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+      UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+      UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+      UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Проверить секреты до долгой работы
+        run: |
+          fail=0
+          [ -z "$UNITY_EMAIL" ]    && { echo "::error ::Нет секрета UNITY_EMAIL (почта аккаунта Unity)"; fail=1; }
+          [ -z "$UNITY_PASSWORD" ] && { echo "::error ::Нет секрета UNITY_PASSWORD (пароль аккаунта Unity)"; fail=1; }
+          if [ -z "$UNITY_LICENSE" ] && [ -z "$UNITY_SERIAL" ] && [ ! -f ci/unity.ulf ]; then
+            echo "::error ::Нужен UNITY_LICENSE (содержимое .ulf) либо UNITY_SERIAL, либо файл ci/unity.ulf"
+            fail=1
+          fi
+          [ "$fail" = "1" ] && { echo "Инструкция: docs/BUILD.md"; exit 1; }
+          echo "Секреты на месте."
+
+      - name: Взять лицензию из ci/unity.ulf, если секрета нет
+        run: |
+          if [ -z "$UNITY_LICENSE" ] && [ -z "$UNITY_SERIAL" ] && [ -f ci/unity.ulf ]; then
+            echo "::warning ::Лицензия читается из файла ci/unity.ulf. Так можно только в приватном репозитории."
+            D="ULF_$(date +%s%N)"
+            { echo "UNITY_LICENSE<<$D"; cat ci/unity.ulf; echo "$D"; } >> "$GITHUB_ENV"
+          fi
+
+      - uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-Check-${{ hashFiles('Assets/**', 'Packages/**') }}
+          restore-keys: Library-
+
+      - name: Компиляция
+        uses: game-ci/unity-builder@v4
+        with:
+          unityVersion: ${{ github.event.inputs.unityVersion }}
+          targetPlatform: StandaloneLinux64
+          buildMethod: Nebula.EditorTools.NebulaBuild.CompileOnly
+          allowDirtyBuild: true

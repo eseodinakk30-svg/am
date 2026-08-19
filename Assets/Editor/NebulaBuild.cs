@@ -25,6 +25,22 @@ namespace Nebula.EditorTools
         [MenuItem("Nebula Nine/Build Windows", false, 22)]
         public static void Windows() => Build(BuildTarget.StandaloneWindows64, "NebulaNine.exe", false);
 
+        /// <summary>
+        /// CI smoke test: Unity compiles every script before it can invoke an
+        /// -executeMethod target, so simply reaching this method proves the whole
+        /// project builds. Much faster than a full Android build (no IL2CPP, no NDK),
+        /// which makes it the right first thing to run on a fresh licence.
+        /// </summary>
+        public static void CompileOnly()
+        {
+            NebulaProjectSetup.RunSetup(false);
+            Debug.Log("[Nebula Nine] Compilation OK. " +
+                      Map.StationLayout.Areas.Count + " areas, " +
+                      Map.StationLayout.Vents.Count + " vents, " +
+                      Tasks.TaskCatalog.All.Count + " task definitions.");
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         private static void Build(BuildTarget target, string fileName, bool appBundle)
         {
             NebulaProjectSetup.RunSetup(false);

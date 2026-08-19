@@ -25,14 +25,39 @@ jobs:
     timeout-minutes: 90
     permissions:
       contents: write
+    env:
+      UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+      UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+      UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+      UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
 
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Проверить секреты до долгой работы
+        run: |
+          fail=0
+          [ -z "$UNITY_EMAIL" ]    && { echo "::error ::Нет секрета UNITY_EMAIL (почта аккаунта Unity)"; fail=1; }
+          [ -z "$UNITY_PASSWORD" ] && { echo "::error ::Нет секрета UNITY_PASSWORD (пароль аккаунта Unity)"; fail=1; }
+          if [ -z "$UNITY_LICENSE" ] && [ -z "$UNITY_SERIAL" ] && [ ! -f ci/unity.ulf ]; then
+            echo "::error ::Нужен UNITY_LICENSE (содержимое .ulf) либо UNITY_SERIAL, либо файл ci/unity.ulf"
+            fail=1
+          fi
+          [ "$fail" = "1" ] && { echo "Инструкция: docs/BUILD.md"; exit 1; }
+          echo "Секреты на месте."
+
+      - name: Взять лицензию из ci/unity.ulf, если секрета нет
+        run: |
+          if [ -z "$UNITY_LICENSE" ] && [ -z "$UNITY_SERIAL" ] && [ -f ci/unity.ulf ]; then
+            echo "::warning ::Лицензия читается из файла ci/unity.ulf. Так можно только в приватном репозитории."
+            D="ULF_$(date +%s%N)"
+            { echo "UNITY_LICENSE<<$D"; cat ci/unity.ulf; echo "$D"; } >> "$GITHUB_ENV"
+          fi
+
       - name: Освободить место на раннере
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc || true
           df -h /
-
-      - uses: actions/checkout@v4
 
       - name: Кэш Library
         uses: actions/cache@v4
@@ -45,10 +70,6 @@ jobs:
 
       - name: Сборка Unity
         uses: game-ci/unity-builder@v4
-        env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           unityVersion: ${{ github.event.inputs.unityVersion || '2022.3.62f1' }}
           targetPlatform: Android
