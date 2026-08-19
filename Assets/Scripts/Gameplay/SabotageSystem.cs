@@ -280,6 +280,15 @@ namespace Nebula.Gameplay
             }
         }
 
+        /// <summary>Client side tick: advance timers for the HUD, never decide anything.</summary>
+        public void UpdateVisualsOnly(float dt)
+        {
+            if (Cooldown > 0f) Cooldown -= dt;
+            if (_doorTimer > 0f) _doorTimer -= dt;
+            if (IsActive && Severity == SabotageSeverity.Critical)
+                TimeLeft = Mathf.Max(0f, TimeLeft - dt);
+        }
+
         public bool CriticalExpired => IsCritical && TimeLeft <= 0f;
 
         public void Resolve(bool announce = true)

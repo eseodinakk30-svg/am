@@ -262,6 +262,15 @@ namespace Nebula.Gameplay
             float dt = Time.deltaTime;
             if (!Running && Phase != MatchPhase.GameOver) return;
 
+            if (RemoteControlled)
+            {
+                // clients only advance timers and visuals; every decision arrives from the host
+                if (Phase != MatchPhase.GameOver) MatchTime += dt;
+                if (PhaseTimer > 0f) PhaseTimer -= dt;
+                Sabotage?.UpdateVisualsOnly(dt);
+                return;
+            }
+
             if (Phase != MatchPhase.GameOver) MatchTime += dt;
             if (PhaseTimer > 0f) PhaseTimer -= dt;
             if (_emergencyCooldown > 0f) _emergencyCooldown -= dt;
@@ -811,12 +820,164 @@ namespace Nebula.Gameplay
             GameEvents.RaiseChat(speaker, text, ghost);
         }
 
+        // ==================================================================
+        //  remote (client) mode - the host owns every decision
+        // ==================================================================
+        public bool RemoteControlled { get; private set; }
+
+        public void StartRemoteMatch(MatchSettings settings, List<PlayerState> roster, int localId)
+        {
+            RemoteControlled = true;
+            Settings = settings ?? new MatchSettings();
+            Settings.Validate();
+            Rng = new NebulaRandom(12345);
+
+            if (_worldRoot == null)
+            {
+                _worldRoot = new GameObject("MatchWorld").transform;
+                _actorRoot = new GameObject("Actors").transform;
+                _actorRoot.SetParent(_worldRoot, false);
+            }
+
+            Tasks ??= new TaskSystem();
+            Tasks.Init(_worldRoot);
+            Sabotage ??= new SabotageSystem();
+            Sabotage.Init(Settings, Station);
+
+            // reuse existing actors when the roster is only being refreshed
+            bool rebuild = Players.Count != roster.Count;
+            if (rebuild)
+            {
+                foreach (var p in Players)
+                    if (p.View is Actor a && a != null) Destroy(a.gameObject);
+                Players.Clear();
+            }
+
+            var spawns = Station != null ? Station.SpawnPoints : new List<Vector3>();
+            for (int i = 0; i < roster.Count; i++)
+            {
+                var incoming = roster[i];
+                PlayerState p = rebuild ? null : PlayerById(incoming.Id);
+                if (p == null)
+                {
+                    p = incoming;
+                    p.IsLocal = p.Id == localId;
+                    Players.Add(p);
+                    var pos = spawns.Count > 0 ? spawns[i % spawns.Count] : Vector3.zero;
+                    var actor = Actor.Spawn(p, _actorRoot, pos);
+                    actor.Motor.BaseSpeed = Settings.MoveSpeed;
+                    actor.Motor.Frozen = !p.IsLocal;
+                    if (p.IsLocal) Local = p;
+                    GameEvents.RaisePlayerSpawned(p);
+                }
+                else
+                {
+                    p.Name = incoming.Name;
+                    p.IsBot = incoming.IsBot;
+                    p.IsLocal = p.Id == localId;
+                    if (p.IsLocal) Local = p;
+                }
+            }
+
+            GameEvents.RaiseRosterChanged();
+            GameEvents.RaiseMatchStarted();
+        }
+
+        public void ApplyRemotePhase(MatchPhase phase, float timer)
+        {
+            Phase = phase;
+            PhaseTimer = timer;
+            GameEvents.RaisePhaseChanged(phase);
+
+            bool frozen = phase != MatchPhase.Roaming;
+            foreach (var p in Players)
+                if (p.View is Actor a && a.Motor != null)
+                    a.Motor.Frozen = frozen || !p.IsLocal;
+
+            if (phase == MatchPhase.MeetingIntro) Meeting.Reset();
+        }
+
+        public void ApplyRemoteKill(int killerId, int victimId, Vector3 bodyPosition, int roomId)
+        {
+            var killer = PlayerById(killerId);
+            var victim = PlayerById(victimId);
+            if (victim == null) return;
+
+            victim.Life = LifeState.Murdered;
+            victim.HasUnreportedBody = true;
+            victim.BodyPosition = bodyPosition;
+            victim.BodyRoomId = roomId;
+            victim.BodyDeck = StationLayout.DeckOfWorld(bodyPosition);
+            victim.DeathTime = MatchTime;
+            victim.KilledById = killerId;
+
+            if (killer?.View is Actor ka) ka.PlayKillAnimation();
+            if (victim.View is Actor va)
+            {
+                va.PlayDeath();
+                va.BecomeGhost();
+            }
+            _bodies.Add(DeadBody.Spawn(victim, _worldRoot));
+            GameEvents.RaiseKilled(killer, victim);
+        }
+
+        public void ApplyRemoteMeeting(int callerId, int victimId, bool emergency)
+        {
+            Meeting.Reset();
+            Meeting.Caller = PlayerById(callerId);
+            Meeting.BodyVictim = victimId >= 0 ? PlayerById(victimId) : null;
+            Meeting.IsEmergency = emergency;
+            Meeting.MeetingNumber++;
+            Meeting.VotingOpen = false;
+
+            foreach (var b in _bodies) if (b != null) Destroy(b.gameObject);
+            _bodies.Clear();
+            foreach (var p in Players) p.HasUnreportedBody = false;
+
+            Sabotage?.Resolve(false);
+            Station?.OpenAllDoors();
+            Station?.SetAllLights(1f);
+            GameEvents.RaiseMeetingStarted(Meeting.Caller, Meeting.BodyVictim);
+        }
+
+        public void ApplyRemoteVote(int voterId, int targetId)
+        {
+            Meeting.Votes[voterId] = targetId;
+            GameEvents.RaiseVoteCast(PlayerById(voterId), targetId);
+        }
+
+        public void ApplyRemoteEject(int playerId, bool wasInfiltrator)
+        {
+            var p = playerId >= 0 ? PlayerById(playerId) : null;
+            if (p != null)
+            {
+                p.Life = LifeState.Ejected;
+                if (p.View is Actor a)
+                {
+                    a.BecomeGhost();
+                    a.Visual.SetState(AnimState.Ejected);
+                }
+            }
+            Meeting.Ejected = p;
+            Meeting.Skipped = p == null;
+            GameEvents.RaiseEjected(p, wasInfiltrator);
+        }
+
+        public void ApplyRemoteTaskProgress(int playerId, float progress)
+        {
+            GameEvents.RaiseTaskProgressChanged(progress);
+        }
+
         public void Teardown()
         {
             if (_worldRoot != null) Destroy(_worldRoot.gameObject);
+            _worldRoot = null;
+            _actorRoot = null;
             _bodies.Clear();
             _brains.Clear();
             Players.Clear();
+            Local = null;
+            RemoteControlled = false;
             Phase = MatchPhase.Lobby;
         }
     }
