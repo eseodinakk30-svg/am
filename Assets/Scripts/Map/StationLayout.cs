@@ -90,6 +90,10 @@ namespace Nebula.Map
         private static readonly Color HotTint = new Color(0.322f, 0.204f, 0.184f);
         private static readonly Color CoolTint = new Color(0.176f, 0.263f, 0.318f);
         private static readonly Color GreenTint = new Color(0.184f, 0.298f, 0.212f);
+        private static readonly Color AmberTint = new Color(0.322f, 0.271f, 0.169f);
+        private static readonly Color VioletTint = new Color(0.259f, 0.204f, 0.333f);
+        private static readonly Color SteelTint = new Color(0.243f, 0.271f, 0.294f);
+        private static readonly Color RustTint = new Color(0.318f, 0.231f, 0.184f);
 
         static StationLayout()
         {
@@ -155,20 +159,20 @@ namespace Nebula.Map
             Room("medbay", "Медотсек", D, 27, 58, 18, 20, CoolTint);
             Room("lab", "Лаборатория", D, 52, 58, 28, 20, CoolTint);
             Room("hydro", "Оранжерея", D, 81, 58, 20, 20, GreenTint);
-            Room("comms", "Связь", D, 108, 58, 18, 20, RoomTint);
+            Room("comms", "Связь", D, 108, 58, 18, 20, VioletTint);
 
             // --- middle band (z 31..50) ---
-            Room("command", "Командный центр", D, 2, 31, 24, 20, RoomTint);
-            Room("security", "Пост наблюдения", D, 27, 31, 18, 20, RoomTint);
-            Room("cafeteria", "Столовая", D, 52, 31, 28, 20, RoomTint);
-            Room("quarters", "Жилой сектор", D, 81, 31, 20, 20, RoomTint);
+            Room("command", "Командный центр", D, 2, 31, 24, 20, SteelTint);
+            Room("security", "Пост наблюдения", D, 27, 31, 18, 20, VioletTint);
+            Room("cafeteria", "Столовая", D, 52, 31, 28, 20, AmberTint);
+            Room("quarters", "Жилой сектор", D, 81, 31, 20, 20, AmberTint);
             Room("observation", "Обсерватория", D, 108, 31, 18, 20, CoolTint);
 
             // --- south band (z 4..23) ---
             Room("electrical", "Электрощитовая", D, 2, 4, 24, 20, HotTint);
-            Room("storage", "Склад", D, 27, 4, 18, 20, RoomTint);
+            Room("storage", "Склад", D, 27, 4, 18, 20, RustTint);
             Room("engines", "Двигательный отсек", D, 52, 4, 28, 20, HotTint);
-            Room("airlock", "Грузовой шлюз", D, 81, 4, 20, 20, RoomTint);
+            Room("airlock", "Грузовой шлюз", D, 81, 4, 20, 20, SteelTint);
             Room("lifesupport", "Жизнеобеспечение", D, 108, 4, 18, 20, GreenTint);
 
             // --- ring corridors ---
@@ -248,11 +252,11 @@ namespace Nebula.Map
 
             Corridor("cor_lower", "Технический коридор", D, 18, 34, 92, 5);
 
-            Room("cargo", "Трюм", D, 20, 40, 26, 20, RoomTint);
+            Room("cargo", "Трюм", D, 20, 40, 26, 20, RustTint);
             Room("servers", "Серверная", D, 50, 40, 26, 20, CoolTint);
             Room("water", "Водоочистка", D, 80, 40, 26, 20, GreenTint);
             Room("coolant", "Холодильная установка", D, 20, 8, 26, 20, CoolTint);
-            Room("maintenance", "Технический уровень", D, 50, 8, 26, 20, RoomTint);
+            Room("maintenance", "Технический уровень", D, 50, 8, 26, 20, SteelTint);
             Room("dronebay", "Ангар дронов", D, 80, 8, 26, 20, HotTint);
 
             Door(D, 30, 39, 4, 1, "cargo");
@@ -263,6 +267,21 @@ namespace Nebula.Map
             Door(D, 30, 28, 4, 6, "coolant");
             Door(D, 60, 28, 4, 6, "maintenance");
             Door(D, 90, 28, 4, 6, "dronebay");
+
+            // --- северный ряд: нижняя палуба была вдвое беднее верхней, и весь
+            // технический уровень сводился к пробежке по одному коридору ---
+            Room("armory", "Оружейная", D, 20, 62, 26, 14, RustTint);
+            Room("archive", "Архив", D, 50, 62, 26, 14, VioletTint);
+            Room("filtration", "Фильтрация", D, 80, 62, 26, 14, GreenTint);
+
+            // проходы из верхнего ряда: между рядами два ряда стены (z 60..61)
+            Door(D, 30, 60, 4, 2, "cargo");
+            Door(D, 60, 60, 4, 2, "servers");
+            Door(D, 90, 60, 4, 2, "water");
+
+            // и короткая перемычка вдоль всего нового ряда, чтобы не бегать вниз
+            Corridor("cor_lower_n", "Верхняя галерея", D, 46, 62, 4, 14);
+            Corridor("cor_lower_n2", "Верхняя галерея", D, 76, 62, 4, 14);
         }
 
         // ------------------------------------------------------------------ vents
@@ -299,6 +318,8 @@ namespace Nebula.Map
             V(DeckId.Lower, 24, 44, "cargo", 4);
             V(DeckId.Lower, 54, 44, "servers", 4);
             V(DeckId.Lower, 24, 12, "coolant", 4);
+            V(DeckId.Lower, 24, 68, "armory", 4);
+            V(DeckId.Lower, 90, 68, "filtration", 4);
         }
 
         private static void BuildElevators()
@@ -323,6 +344,8 @@ namespace Nebula.Map
             Cameras.Add(new CameraDef { RoomKey = "reactor", Cell = new Vector2Int(14, 75), Yaw = 180f });
             Cameras.Add(new CameraDef { RoomKey = "storage", Cell = new Vector2Int(36, 21), Yaw = 180f });
             Cameras.Add(new CameraDef { RoomKey = "engines", Cell = new Vector2Int(66, 21), Yaw = 180f });
+            Cameras.Add(new CameraDef { RoomKey = "cargo", Cell = new Vector2Int(32, 56), Yaw = 180f });
+            Cameras.Add(new CameraDef { RoomKey = "archive", Cell = new Vector2Int(62, 72), Yaw = 180f });
         }
 
         // ------------------------------------------------------------------ api
