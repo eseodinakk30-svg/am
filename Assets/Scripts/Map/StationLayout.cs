@@ -282,6 +282,20 @@ namespace Nebula.Map
             // и короткая перемычка вдоль всего нового ряда, чтобы не бегать вниз
             Corridor("cor_lower_n", "Верхняя галерея", D, 46, 62, 4, 14);
             Corridor("cor_lower_n2", "Верхняя галерея", D, 76, 62, 4, 14);
+
+            // --- боковые крылья: по краям палубы оставалось по восемнадцать
+            // пустых клеток в ширину на всю высоту, и станция обрывалась стеной ---
+            Corridor("cor_lower_w", "Западный проход", D, 2, 34, 16, 5);
+            Room("reprocessing", "Переработка", D, 2, 40, 14, 20, GreenTint);
+            Room("battery", "Аккумуляторный", D, 2, 8, 14, 20, AmberTint);
+            Door(D, 6, 39, 4, 1, "reprocessing");
+            Door(D, 6, 28, 4, 6, "battery");
+
+            Corridor("cor_lower_e", "Восточный проход", D, 110, 34, 16, 5);
+            Room("relay", "Ретранслятор", D, 112, 40, 14, 20, VioletTint);
+            Room("scrap", "Разборка", D, 112, 8, 14, 20, RustTint);
+            Door(D, 116, 39, 4, 1, "relay");
+            Door(D, 116, 28, 4, 6, "scrap");
         }
 
         // ------------------------------------------------------------------ vents
@@ -320,6 +334,12 @@ namespace Nebula.Map
             V(DeckId.Lower, 24, 12, "coolant", 4);
             V(DeckId.Lower, 24, 68, "armory", 4);
             V(DeckId.Lower, 90, 68, "filtration", 4);
+
+            // network 5 - крылья нижней палубы
+            V(DeckId.Lower, 8, 48, "reprocessing", 5);
+            V(DeckId.Lower, 8, 16, "battery", 5);
+            V(DeckId.Lower, 118, 48, "relay", 5);
+            V(DeckId.Lower, 118, 16, "scrap", 5);
         }
 
         private static void BuildElevators()
@@ -346,6 +366,8 @@ namespace Nebula.Map
             Cameras.Add(new CameraDef { RoomKey = "engines", Cell = new Vector2Int(66, 21), Yaw = 180f });
             Cameras.Add(new CameraDef { RoomKey = "cargo", Cell = new Vector2Int(32, 56), Yaw = 180f });
             Cameras.Add(new CameraDef { RoomKey = "archive", Cell = new Vector2Int(62, 72), Yaw = 180f });
+            Cameras.Add(new CameraDef { RoomKey = "battery", Cell = new Vector2Int(8, 24), Yaw = 180f });
+            Cameras.Add(new CameraDef { RoomKey = "relay", Cell = new Vector2Int(118, 56), Yaw = 180f });
         }
 
         // ------------------------------------------------------------------ api

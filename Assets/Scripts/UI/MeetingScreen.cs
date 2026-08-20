@@ -391,8 +391,10 @@ namespace Nebula.UI
             {
                 var oldest = (RectTransform)_chatContent.GetChild(0);
                 float h = oldest.sizeDelta.y;
-                Destroy(oldest.gameObject);
+                // сначала отцепляем, потом удаляем: Destroy отложен до конца кадра,
+                // и childCount упал бы не сразу — цикл крутился бы вечно
                 oldest.SetParent(null, false);
+                Destroy(oldest.gameObject);
                 _chatContent.sizeDelta = new Vector2(0f, Mathf.Max(0f, _chatContent.sizeDelta.y - h));
                 for (int i = 0; i < _chatContent.childCount; i++)
                 {

@@ -36,6 +36,8 @@ namespace Nebula.UI
         private RectTransform _taskPanel;
         private RectTransform _taskBody;
         private Text _collapseMark;
+        private RectTransform _questArrow;
+        private Image _questArrowImage;
         private bool _tasksCollapsed;
         private Image _roleButton;          // «ЖИЗНИ» у учёного, «ОБЛИК» у оборотня
         private Text _roleButtonLabel;
@@ -180,6 +182,16 @@ namespace Nebula.UI
             _ventPanel = UIKit.Anchored(_root, "VentHops", new Vector2(0.5f, 0f), new Vector2(0f, 380f), new Vector2(900f, 90f));
             _ventPanel.gameObject.SetActive(false);
 
+            // ---- указатель на задание ---------------------------------------
+            // Станция стала большой, и без стрелки к ближайшей цели новичок
+            // просто наматывает круги. При активном саботаже стрелка ведёт к нему.
+            _questArrow = UIKit.Anchored(_root, "Quest", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(54f, 54f));
+            _questArrowImage = _questArrow.gameObject.AddComponent<Image>();
+            _questArrowImage.sprite = Art.Triangle(64);
+            _questArrowImage.color = new Color(0.98f, 0.82f, 0.28f, 0.85f);
+            _questArrowImage.raycastTarget = false;
+            _questArrow.gameObject.SetActive(false);
+
             GameEvents.Announce += ShowToast;
             GameEvents.PhaseChanged += OnPhase;
         }
@@ -252,6 +264,7 @@ namespace Nebula.UI
             UpdateAlerts();
             UpdateRepair(local);
             UpdateVentPanel(local);
+            UpdateQuestArrow(local);
 
             if (_toastTimer > 0f)
             {
@@ -333,6 +346,82 @@ namespace Nebula.UI
             var c = button.color;
             c.a = on ? 0.94f : 0.34f;
             button.color = c;
+        }
+
+        /// <summary>
+        /// Стрелка к ближайшей цели. Камера смотрит сверху без рыскания, поэтому
+        /// мировые X и Z ложатся прямо на экранные вправо и вверх — направление
+        /// считается без проекции.
+        /// </summary>
+        private void UpdateQuestArrow(PlayerState local)
+        {
+            if (_questArrow == null) return;
+
+            if (_match.Phase != MatchPhase.Roaming || !local.IsAlive || local.InVent)
+            {
+                _questArrow.gameObject.SetActive(false);
+                return;
+            }
+
+            bool sabotage = false;
+            if (!TryFindGuidance(local, out var target, out sabotage))
+            {
+                _questArrow.gameObject.SetActive(false);
+                return;
+            }
+
+            var d = target - local.Position;
+            d.y = 0f;
+            if (d.sqrMagnitude < 9f)          // уже пришли — стрелка только мешает
+            {
+                _questArrow.gameObject.SetActive(false);
+                return;
+            }
+
+            d.Normalize();
+            _questArrow.gameObject.SetActive(true);
+            _questArrow.anchoredPosition = new Vector2(d.x, d.z) * 190f;
+            _questArrow.localRotation = Quaternion.Euler(0f, 0f, -Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg);
+            _questArrowImage.color = sabotage
+                ? new Color(0.96f, 0.32f, 0.30f, 0.9f)
+                : new Color(0.98f, 0.82f, 0.28f, 0.85f);
+        }
+
+        /// <summary>Куда вести игрока: сперва критический саботаж, потом ближайшее задание.</summary>
+        private bool TryFindGuidance(PlayerState local, out Vector3 target, out bool sabotage)
+        {
+            target = Vector3.zero;
+            sabotage = false;
+
+            var sab = _match.Sabotage;
+            if (sab != null && sab.IsActive && sab.Panels.Count > 0)
+            {
+                float best = float.MaxValue;
+                for (int i = 0; i < sab.Panels.Count; i++)
+                {
+                    if (sab.Panels[i].Done) continue;
+                    if (sab.Panels[i].Deck != local.Deck) continue;
+                    float dist = (sab.Panels[i].Position - local.Position).sqrMagnitude;
+                    if (dist < best) { best = dist; target = sab.Panels[i].Position; sabotage = true; }
+                }
+                if (sabotage) return true;
+            }
+
+            // предателю задания не нужны — у него свои дела
+            if (local.Role == Role.Infiltrator) return false;
+
+            float nearest = float.MaxValue;
+            bool found = false;
+            foreach (var task in local.Tasks)
+            {
+                if (task == null || task.IsComplete) continue;
+                var area = StationLayout.Get(task.CurrentRoomId);
+                if (area == null || area.Deck != local.Deck) continue;
+                var pos = StationLayout.AreaCenterWorld(area.Id);
+                float dist = (pos - local.Position).sqrMagnitude;
+                if (dist < nearest) { nearest = dist; target = pos; found = true; }
+            }
+            return found;
         }
 
         private void UpdateRoleButton(PlayerState local, bool alive)

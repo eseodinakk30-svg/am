@@ -561,11 +561,41 @@ namespace Nebula.Map
         }
 
         // ------------------------------------------------------------------ spawns
+        /// <summary>
+        /// Физическая кнопка сбора посреди столовой. Собрание и раньше можно было
+        /// созвать только отсюда, но узнать об этом было неоткуда — кнопка на
+        /// экране просто оставалась серой.
+        /// </summary>
+        private void BuildEmergencyButton(Vector3 centre)
+        {
+            var holder = Child("EmergencyButton", transform).transform;
+            holder.position = centre;
+
+            var pedestal = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            pedestal.name = "Pedestal";
+            pedestal.transform.SetParent(holder, false);
+            pedestal.transform.localPosition = new Vector3(0f, 0.5f, 0f);
+            pedestal.transform.localScale = new Vector3(1.7f, 0.5f, 1.7f);
+            pedestal.GetComponent<Renderer>().sharedMaterial =
+                Art.Lit(new Color(0.20f, 0.23f, 0.30f), 0.15f, 0.4f);
+
+            var dome = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            Destroy(dome.GetComponent<Collider>());
+            dome.name = "Dome";
+            dome.transform.SetParent(holder, false);
+            dome.transform.localPosition = new Vector3(0f, 1.05f, 0f);
+            dome.transform.localScale = new Vector3(1.1f, 0.7f, 1.1f);
+            dome.GetComponent<Renderer>().sharedMaterial =
+                Art.Lit(new Color(0.86f, 0.20f, 0.22f), 0f, 0.6f, 1.4f);
+        }
+
         private void BuildSpawnPoints()
         {
             var cafeteria = StationLayout.Get("cafeteria");
             if (cafeteria == null) return;
             MeetingCenter = StationLayout.CellToWorld(cafeteria.Deck, cafeteria.CenterCell.x, cafeteria.CenterCell.y);
+
+            BuildEmergencyButton(MeetingCenter);
 
             for (int i = 0; i < 15; i++)
             {
