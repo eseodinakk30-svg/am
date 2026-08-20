@@ -58,6 +58,9 @@ namespace Nebula.AI
             "{t} выглядит подозрительно — {why}.",
             "У меня вопросы к {t}, {why}.",
             "Если честно, {t} самый странный сейчас: {why}.",
+            "{t} странный, {why}",
+            "мне {t} не нравится. {why}",
+            "{why}. смотрите на {t}",
         };
 
         private static readonly string[] AccuseAggressive =
@@ -67,6 +70,10 @@ namespace Nebula.AI
             "Голосуем {t}. {why}, всё очевидно.",
             "Хватит тянуть — {t} предатель. {why}.",
             "{t} палится всю игру. {why}!",
+            "{t} 100%",
+            "кидаю на {t}, {why}",
+            "{t} где был??",
+            "это {t}, го",
         };
 
         private static readonly string[] AccuseParanoid =
@@ -75,6 +82,8 @@ namespace Nebula.AI
             "Никому не верю, но {t} хуже всех: {why}.",
             "{t} слишком тихо себя ведёт. {why}.",
             "Скажу прямо: {t} меня пугает. {why}.",
+            "{t} молчит весь раунд...",
+            "я бы {t} не верил",
         };
 
         private static readonly string[] AccuseFriendly =
@@ -82,6 +91,8 @@ namespace Nebula.AI
             "Ребят, не хочу никого обижать, но {t}... {why}.",
             "Извини, {t}, но {why}. Объясни, пожалуйста.",
             "Я не уверен, но {t} стоит проверить: {why}.",
+            "{t}, скажи где был?",
+            "ну {t} немного мутный",
         };
 
         private static readonly string[] AccuseCold =
@@ -89,6 +100,8 @@ namespace Nebula.AI
             "Факт: {why}. Вывод: {t}.",
             "{t}. Основание — {why}.",
             "По совокупности данных подозреваю {t}: {why}.",
+            "{t}. {why}",
+            "вывод: {t}",
         };
 
         private static readonly string[] DefendSelf =
@@ -98,6 +111,10 @@ namespace Nebula.AI
             "У меня алиби: {r}, там и был.",
             "Проверьте мои задания, я из {r} не выходил.",
             "Я в {r}, могу описать что там чинил.",
+            "я не имп",
+            "да я {r} делал",
+            "вы серьёзно? я {r}",
+            "с чего вдруг я",
         };
 
         private static readonly string[] DefendSelfAggressive =
@@ -105,6 +122,9 @@ namespace Nebula.AI
             "Не переводи стрелки. Я был в {r}.",
             "Классика: обвинить первого встречного. Я в {r} был.",
             "Ты просто хочешь снять с себя внимание. {r}, весь раунд.",
+            "вы что творите",
+            "я в {r} был, отвалите",
+            "докажи",
         };
 
         private static readonly string[] ClaimAlibi =
@@ -114,6 +134,9 @@ namespace Nebula.AI
             "Шёл через {r} в {r2}.",
             "С самого начала в {r}.",
             "{r}, потом собирался в {r2}.",
+            "я {r}",
+            "был в {r}, потом {r2}",
+            "{r} всю дорогу",
         };
 
         private static readonly string[] ClaimAlibiWithCompanion =
@@ -122,6 +145,8 @@ namespace Nebula.AI
             "{o} может подтвердить, мы были в {r}.",
             "Мы с {o} в {r} были, никто не выходил.",
             "Я всё время рядом с {o} в {r}.",
+            "я с {o} в {r}",
+            "{o} подтвердит, {r}",
         };
 
         private static readonly string[] Vouch =
@@ -130,6 +155,9 @@ namespace Nebula.AI
             "Я за {t} ручаюсь — вместе шли через {r}.",
             "Не {t}. Я его видел в {r}.",
             "{t} точно не мог, он у меня на глазах был.",
+            "{t} чист",
+            "{t} со мной был",
+            "не {t} точно",
         };
 
         private static readonly string[] Corroborate =
@@ -137,6 +165,9 @@ namespace Nebula.AI
             "Подтверждаю, {t} был в {r}.",
             "Да, я тоже видел {t} в {r}.",
             "Так и есть, {t} там был.",
+            "+",
+            "да, было такое",
+            "подтверждаю",
         };
 
         private static readonly string[] Contradict =
@@ -146,6 +177,8 @@ namespace Nebula.AI
             "{t}, ты только что соврал. {r2}, не {r}.",
             "Не сходится: {t} утверждает {r}, но я видел его в {r2}.",
             "У {t} история не бьётся: {r} против {r2}.",
+            "ты же говорил {r}?",
+            "стоп, ты сказал другое",
         };
 
         private static readonly string[] Question =
@@ -156,6 +189,9 @@ namespace Nebula.AI
             "{t}, что ты делал в {r}?",
             "Кто был рядом с {r}?",
             "{t}, почему ты один ходишь?",
+            "{t} где был?",
+            "{t}?",
+            "{t}, тасков сколько?",
         };
 
         private static readonly string[] Answer =
@@ -164,6 +200,9 @@ namespace Nebula.AI
             "В {r}. Один, да, но задания там.",
             "Рядом со мной был {o}.",
             "Я в {r} чинил, потом услышал сбор.",
+            "{r}",
+            "я же сказал — {r}",
+            "{r}, потом {r2}",
         };
 
         private static readonly string[] DemandEvidence =
@@ -172,6 +211,9 @@ namespace Nebula.AI
             "Слова без доказательств. Кто ещё видел?",
             "Мне нужны факты, а не ощущения.",
             "Кто может это подтвердить?",
+            "пруф?",
+            "на чём основано",
+            "доказательства есть?",
         };
 
         private static readonly string[] ReportContext =
@@ -188,6 +230,8 @@ namespace Nebula.AI
             "Согласен, {t} скорее чист.",
             "Беру слова назад про {t}.",
             "Хорошо, тогда {t} — не он.",
+            "ладно, беру слова назад",
+            "хм, тогда не {t}",
         };
 
         private static readonly string[] Agree =
@@ -197,6 +241,9 @@ namespace Nebula.AI
             "Поддерживаю.",
             "Логично.",
             "Я с ним.",
+            "+",
+            "согласен",
+            "да, го",
         };
 
         private static readonly string[] Doubt =
@@ -205,6 +252,9 @@ namespace Nebula.AI
             "Слабое основание, если честно.",
             "Мне это не нравится, но доказательств нет.",
             "Может быть. А может и нет.",
+            "не уверен",
+            "мутно как-то",
+            "хз",
         };
 
         private static readonly string[] Deflect =
@@ -213,6 +263,8 @@ namespace Nebula.AI
             "Мы тратим время. Кто следил за {r}?",
             "Не в ту сторону смотрите.",
             "Меня обсуждать бессмысленно, посмотрите на {t}.",
+            "а почему не {t}?",
+            "на {t} лучше посмотрите",
         };
 
         private static readonly string[] TaskClaim =
@@ -221,6 +273,8 @@ namespace Nebula.AI
             "У меня осталось {n} задания.",
             "Закончил задание в {r}, шёл дальше.",
             "Проверьте прогресс — я работаю.",
+            "у меня {n} тасков",
+            "делал таск в {r}",
         };
 
         private static readonly string[] SabotageNote =
@@ -244,6 +298,9 @@ namespace Nebula.AI
             "Я за {t}.",
             "Всё, кидаем на {t}.",
             "{t}, без вариантов.",
+            "го {t}",
+            "кидаем {t}",
+            "{t}, погнали",
         };
 
         private static readonly string[] SkipCall =
@@ -252,6 +309,9 @@ namespace Nebula.AI
             "Скип. Нельзя выкидывать наугад.",
             "Лучше пропустить и посмотреть следующий раунд.",
             "Скип, иначе выкинем своего.",
+            "скип",
+            "скипаем, инфы нет",
+            "пропускаем",
         };
 
         private static readonly string[] Greeting =
@@ -261,6 +321,10 @@ namespace Nebula.AI
             "Давайте по порядку.",
             "Тихо. Кто что видел?",
             "Ну и кто на этот раз?",
+            "где",
+            "кто где был",
+            "что было?",
+            "о нет",
         };
 
         private static readonly string[] Silence =

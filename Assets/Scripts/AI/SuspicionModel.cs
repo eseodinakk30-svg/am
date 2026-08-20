@@ -38,6 +38,7 @@ namespace Nebula.AI
         WithMe,
         TaskSeen,
         Cleared,
+        Silent,
     }
 
     public struct SuspicionEntry
@@ -212,6 +213,26 @@ namespace Nebula.AI
                     if (r.SecondaryId != scene.SubjectId) continue;
                     float w = Mathf.Lerp(0.12f, 0.75f, 1f - personality.Trust);
                     Bump(scratch, r.SubjectId, w, EvidenceKind.SelfReport, r);
+                }
+            }
+
+            // --- кто отмалчивается ------------------------------------------
+            // Живой участник, не сказавший ни слова за собрание, вызывает вопросы —
+            // ровно как у людей. Без этого игрок, который просто не пишет в чат,
+            // не набирал подозрений вовсе, и его никогда не обвиняли.
+            var meeting = match.Meeting;
+            if (meeting != null && meeting.Chat != null && meeting.Chat.Count >= 6)
+            {
+                var spoke = new HashSet<int>();
+                for (int i = 0; i < meeting.Chat.Count; i++) spoke.Add(meeting.Chat[i].SpeakerId);
+
+                foreach (var kv in new List<int>(scratch.Keys))
+                {
+                    if (kv == self.Id || spoke.Contains(kv)) continue;
+                    var quiet = match != null ? match.PlayerById(kv) : null;
+                    if (quiet == null || !quiet.IsAlive) continue;
+                    Bump(scratch, kv, 0.55f * Mathf.Lerp(0.4f, 1.3f, 1f - personality.Trust),
+                         EvidenceKind.Silent, new MemoryRecord { SubjectId = kv, Time = now, RoomId = -1 });
                 }
             }
 
@@ -398,6 +419,7 @@ namespace Nebula.AI
                 case EvidenceKind.WithMe: return "он был со мной";
                 case EvidenceKind.TaskSeen: return "он работал у консоли";
                 case EvidenceKind.Cleared: return "он был далеко";
+                case EvidenceKind.Silent: return "он отмалчивается всё собрание";
                 default: return "просто ощущение";
             }
         }

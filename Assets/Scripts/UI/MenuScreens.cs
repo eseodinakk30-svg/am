@@ -19,6 +19,8 @@ namespace Nebula.UI
     {
         private RectTransform _root;
         private RectTransform _tabHost;
+        private RectTransform _tabBar;
+        private RectTransform _front;
         private readonly Dictionary<string, RectTransform> _tabs = new Dictionary<string, RectTransform>();
         private Camera _previewCamera;
         private CharacterVisual _preview;
@@ -60,43 +62,78 @@ namespace Nebula.UI
             bgImg.color = new Color(1f, 1f, 1f, 0.55f);
             bgImg.raycastTarget = false;
 
-            UIKit.Label(_root, "NEBULA NINE", new Vector2(0f, 360f), new Vector2(1200f, 90f), 76,
+            // ---- титульная страница ----------------------------------------
+            // Никаких вкладок на входе: крупное название и три большие кнопки,
+            // как в играх этого жанра. Всё остальное убрано в «НАСТРОЙКИ».
+            _front = UIKit.Region(_root, "Front", Vector2.zero, Vector2.one);
+
+            var titleBox = UIKit.Region(_front, "Title", new Vector2(0f, 0.70f), new Vector2(1f, 0.95f));
+            UIKit.RowLabel(titleBox, "NEBULA NINE", 40f, 40f, 12f, 110f, 88,
                 TextAnchor.MiddleCenter, Art.Accent, FontStyle.Bold);
-            UIKit.Label(_root, "станция N-9 · найди предателя, пока он не нашёл тебя",
-                new Vector2(0f, 296f), new Vector2(1200f, 40f), 24, TextAnchor.MiddleCenter, Art.TextDim);
+            UIKit.RowLabel(titleBox, "станция N-9 · найди предателя, пока он не нашёл тебя",
+                40f, 40f, -70f, 40f, 24, TextAnchor.MiddleCenter, Art.TextDim);
 
-            // ---- tab bar ----
-            string[] tabNames = { "ИГРА", "ПРАВИЛА", "ПЕРСОНАЖ", "СЕТЬ", "НАСТРОЙКИ" };
-            for (int i = 0; i < tabNames.Length; i++)
-            {
-                string key = tabNames[i];
-                UIKit.Button(_root, key, new Vector2(-620f + i * 310f, 218f), new Vector2(290f, 62f),
-                    () => ShowTab(key), new Color(0.12f, 0.16f, 0.24f, 0.95f), 22, 14);
-            }
+            var menuBox = UIKit.Region(_front, "Buttons", new Vector2(0.30f, 0.12f), new Vector2(0.70f, 0.66f));
+            UIKit.ButtonIn(UIKit.Row(menuBox, "Play", 0f, 0f, 150f, 116f), "ИГРАТЬ",
+                () => OnStartSolo?.Invoke(1), new Color(0.20f, 0.62f, 0.42f, 0.97f), 40, 22);
+            UIKit.ButtonIn(UIKit.Row(menuBox, "Online", 0f, 0f, 22f, 86f), "ПО СЕТИ",
+                () => ShowTab("СЕТЬ"), new Color(0.20f, 0.45f, 0.68f, 0.96f), 30, 18);
+            UIKit.ButtonIn(UIKit.Row(menuBox, "Look", 0f, 0f, -76f, 86f), "ПЕРСОНАЖ",
+                () => ShowTab("ПЕРСОНАЖ"), new Color(0.36f, 0.28f, 0.55f, 0.96f), 30, 18);
+            UIKit.ButtonIn(UIKit.Row(menuBox, "Options", 0f, 0f, -174f, 86f), "НАСТРОЙКИ",
+                () => ShowTab("НАСТРОЙКИ"), new Color(0.22f, 0.26f, 0.34f, 0.96f), 30, 18);
 
-            _tabHost = UIKit.Node(_root, "TabHost", new Vector2(0f, -70f), new Vector2(1450f, 520f));
+            // ---- страница с разделами --------------------------------------
+            _tabHost = UIKit.Region(_root, "TabHost", new Vector2(0.02f, 0.10f), new Vector2(0.98f, 0.86f));
             BuildPlayTab();
             BuildRulesTab();
             BuildCharacterTab();
             BuildNetworkTab();
             BuildSettingsTab();
-            ShowTab("ИГРА");
 
-            _statusLabel = UIKit.Label(_root, "", new Vector2(0f, -400f), new Vector2(1300f, 40f), 22,
+            _tabBar = UIKit.Region(_root, "TabBar", new Vector2(0.02f, 0.87f), new Vector2(0.98f, 0.97f));
+            string[] tabNames = { "ИГРА", "ПРАВИЛА", "ПЕРСОНАЖ", "СЕТЬ", "НАСТРОЙКИ" };
+            for (int i = 0; i < tabNames.Length; i++)
+            {
+                string key = tabNames[i];
+                var rt = UIKit.Region(_tabBar, "Tab_" + key,
+                    new Vector2(i / (float)(tabNames.Length + 1), 0f),
+                    new Vector2((i + 1f) / (tabNames.Length + 1), 1f), 6f);
+                UIKit.ButtonIn(rt, key, () => ShowTab(key), new Color(0.12f, 0.16f, 0.24f, 0.95f), 22, 14);
+            }
+            var backRt = UIKit.Region(_tabBar, "Back",
+                new Vector2(tabNames.Length / (float)(tabNames.Length + 1), 0f), new Vector2(1f, 1f), 6f);
+            UIKit.ButtonIn(backRt, "НАЗАД", ShowFront, new Color(0.35f, 0.18f, 0.20f, 0.96f), 22, 14);
+
+            var statusRt = UIKit.Region(_root, "Status", new Vector2(0f, 0.01f), new Vector2(1f, 0.09f));
+            _statusLabel = UIKit.RowLabel(statusRt, "", 40f, 40f, 0f, 40f, 22,
                 TextAnchor.MiddleCenter, Art.AccentWarm);
+
+            ShowFront();
         }
 
         private RectTransform NewTab(string key)
         {
-            var rt = UIKit.Node(_tabHost, "Tab_" + key, Vector2.zero, new Vector2(1450f, 520f));
-            UIKit.PanelStretch(rt, "Bg", new Color(0.06f, 0.08f, 0.13f, 0.88f), 20);
+            var rt = UIKit.Region(_tabHost, "Tab_" + key, Vector2.zero, Vector2.one);
+            UIKit.PanelStretch(rt, "Bg", new Color(0.06f, 0.08f, 0.13f, 0.94f), 20);
             _tabs[key] = rt;
             rt.gameObject.SetActive(false);
             return rt;
         }
 
+        private void ShowFront()
+        {
+            _front.gameObject.SetActive(true);
+            _tabHost.gameObject.SetActive(false);
+            _tabBar.gameObject.SetActive(false);
+            foreach (var kv in _tabs) kv.Value.gameObject.SetActive(false);
+        }
+
         private void ShowTab(string key)
         {
+            _front.gameObject.SetActive(false);
+            _tabHost.gameObject.SetActive(true);
+            _tabBar.gameObject.SetActive(true);
             foreach (var kv in _tabs) kv.Value.gameObject.SetActive(kv.Key == key);
         }
 

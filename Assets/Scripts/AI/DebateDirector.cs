@@ -115,8 +115,15 @@ namespace Nebula.AI
             _beatTimer -= dt;
             if (_beatTimer > 0f) return;
 
-            float pace = _match.Phase == MatchPhase.Voting ? 2.7f : 1.9f;
-            _beatTimer = pace + _rng.Range(-0.5f, 0.9f);
+            // Реплика раз в две секунды читалась как спам: пока разберёшь одну,
+            // прилетают ещё три. Живые люди пишут заметно медленнее, да и успеть
+            // прочитать надо. К концу обсуждения темп сам ускоряется — как перед
+            // закрытием голосования.
+            float urgency = _meeting != null && _match.PhaseTimer > 0f
+                ? Mathf.InverseLerp(18f, 4f, _match.PhaseTimer) : 0f;
+            float pace = _match.Phase == MatchPhase.Voting ? 4.6f : 4.0f;
+            pace = Mathf.Lerp(pace, pace * 0.62f, Mathf.Clamp01(urgency));
+            _beatTimer = pace + _rng.Range(-0.8f, 1.6f);
 
             var best = SpeechAct.None;
             PlayerState bestSpeaker = null;

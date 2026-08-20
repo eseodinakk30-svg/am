@@ -33,6 +33,10 @@ namespace Nebula.UI
         private Text _repairLabel;
         private MinimapView _minimap;
         private RectTransform _ventPanel;
+        private RectTransform _taskPanel;
+        private RectTransform _taskBody;
+        private Text _collapseMark;
+        private bool _tasksCollapsed;
         private Image _roleButton;          // «ЖИЗНИ» у учёного, «ОБЛИК» у оборотня
         private Text _roleButtonLabel;
         private float _toastTimer;
@@ -90,15 +94,46 @@ namespace Nebula.UI
                 new Color(0.28f, 0.55f, 0.48f, 0.92f), () => _player.UseRoleAbility(), out _roleButtonLabel);
 
             // ---- objectives ------------------------------------------------
-            var taskPanel = UIKit.Anchored(_root, "Tasks", new Vector2(0f, 1f), new Vector2(24f, -24f), new Vector2(470f, 360f));
-            UIKit.PanelStretch(taskPanel, "Bg", new Color(0.04f, 0.06f, 0.10f, 0.68f), 14);
-            _roleText = UIKit.Label(taskPanel, "", new Vector2(0f, 148f), new Vector2(440f, 40f), 24,
+            // Список заданий сворачивается по шапке: он закрывал левую треть
+            // экрана и мешал смотреть, что происходит вокруг.
+            _taskPanel = UIKit.Anchored(_root, "Tasks", new Vector2(0f, 1f), new Vector2(20f, -20f), new Vector2(460f, 372f));
+            UIKit.PanelStretch(_taskPanel, "Bg", new Color(0.04f, 0.06f, 0.10f, 0.82f), 14);
+
+            var headerRt = UIKit.Row(_taskPanel, "Header", 6f, 6f, 0f, 46f);
+            headerRt.anchorMin = new Vector2(0f, 1f);
+            headerRt.anchorMax = new Vector2(1f, 1f);
+            headerRt.pivot = new Vector2(0.5f, 1f);
+            headerRt.anchoredPosition = new Vector2(0f, -6f);
+            UIKit.ButtonIn(headerRt, "", ToggleTasks, new Color(0.09f, 0.13f, 0.20f, 0.92f), 20, 10);
+
+            _roleText = UIKit.RowLabel(headerRt, "", 14f, 54f, 0f, 40f, 23,
                 TextAnchor.MiddleLeft, Art.TextMain, FontStyle.Bold);
-            _roleText.rectTransform.anchorMin = _roleText.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            _progressBar = UIKit.Bar(taskPanel, new Vector2(0f, 112f), new Vector2(430f, 20f),
-                new Color(0f, 0f, 0f, 0.5f), Art.Good, 6);
-            _taskListText = UIKit.Label(taskPanel, "", new Vector2(0f, -25f), new Vector2(440f, 260f), 21,
-                TextAnchor.UpperLeft, Art.TextMain);
+            _collapseMark = UIKit.RowLabel(headerRt, "▲", 0f, 14f, 0f, 40f, 22,
+                TextAnchor.MiddleRight, Art.TextDim, FontStyle.Bold);
+
+            _taskBody = UIKit.Region(_taskPanel, "Body", new Vector2(0f, 0f), new Vector2(1f, 1f), 0f);
+            _taskBody.offsetMax = new Vector2(-6f, -56f);
+            _taskBody.offsetMin = new Vector2(6f, 8f);
+
+            var barRt = UIKit.Row(_taskBody, "Bar", 8f, 8f, 0f, 18f);
+            barRt.anchorMin = new Vector2(0f, 1f);
+            barRt.anchorMax = new Vector2(1f, 1f);
+            barRt.pivot = new Vector2(0.5f, 1f);
+            barRt.anchoredPosition = new Vector2(0f, -4f);
+            _progressBar = UIKit.BarIn(barRt, new Color(0f, 0f, 0f, 0.5f), Art.Good, 6);
+
+            var listRt = UIKit.Region(_taskBody, "List", new Vector2(0f, 0f), new Vector2(1f, 1f), 0f);
+            listRt.offsetMax = new Vector2(-8f, -30f);
+            listRt.offsetMin = new Vector2(8f, 4f);
+            _taskListText = listRt.gameObject.AddComponent<Text>();
+            _taskListText.font = Art.UiFont;
+            _taskListText.fontSize = 21;
+            _taskListText.color = Art.TextMain;
+            _taskListText.alignment = TextAnchor.UpperLeft;
+            _taskListText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _taskListText.verticalOverflow = VerticalWrapMode.Truncate;
+            _taskListText.supportRichText = true;
+            _taskListText.raycastTarget = false;
 
             // ---- minimap ---------------------------------------------------
             _minimap = MinimapView.Create(_root, _match, Vector2.zero, new Vector2(430f, 275f), true);
@@ -118,7 +153,7 @@ namespace Nebula.UI
             _alertText.rectTransform.anchorMin = _alertText.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             _alertPanel.gameObject.SetActive(false);
 
-            var toast = UIKit.Anchored(_root, "Toast", new Vector2(0.5f, 0f), new Vector2(0f, 210f), new Vector2(760f, 62f));
+            var toast = UIKit.Anchored(_root, "Toast", new Vector2(0.5f, 1f), new Vector2(0f, -160f), new Vector2(760f, 62f));
             _toastPanel = UIKit.PanelStretch(toast, "Bg", new Color(0.06f, 0.08f, 0.13f, 0.9f), 14);
             _toastText = UIKit.Label(toast, "", Vector2.zero, new Vector2(740f, 58f), 24,
                 TextAnchor.MiddleCenter, Art.TextMain);
@@ -159,7 +194,21 @@ namespace Nebula.UI
         {
             bool inRound = phase == MatchPhase.Roaming || phase == MatchPhase.RoleReveal;
             bool lobby = phase == MatchPhase.Lobby;
-            _root.gameObject.SetActive(true);
+
+            // На собрании HUD прятался только частично: список заданий, миникарта,
+            // джойстик и подсказки просвечивали сквозь экран голосования и лезли
+            // поверх карточек. Убираем целиком — там он не нужен.
+            bool meeting = phase == MatchPhase.MeetingIntro || phase == MatchPhase.Discussion
+                           || phase == MatchPhase.Voting || phase == MatchPhase.VoteResult
+                           || phase == MatchPhase.Ejection || phase == MatchPhase.GameOver;
+            _root.gameObject.SetActive(!meeting);
+            if (meeting)
+            {
+                if (_toastPanel != null) _toastPanel.gameObject.SetActive(false);
+                if (_repairPanel != null) _repairPanel.gameObject.SetActive(false);
+                _toastTimer = 0f;
+                return;
+            }
 
             // В лобби из всего управления нужны только стик и «ДЕЙСТВИЕ» для ноутбука.
             foreach (var img in new[] { _killButton, _reportButton, _ventButton, _sabotageButton, _emergencyButton, _roleButton })
@@ -171,6 +220,14 @@ namespace Nebula.UI
             if (_minimap != null) _minimap.gameObject.SetActive(!lobby);
 
             if (phase == MatchPhase.RoleReveal) _roleRevealTimer = 4f;
+        }
+
+        private void ToggleTasks()
+        {
+            _tasksCollapsed = !_tasksCollapsed;
+            _taskBody.gameObject.SetActive(!_tasksCollapsed);
+            _taskPanel.sizeDelta = new Vector2(460f, _tasksCollapsed ? 58f : 372f);
+            if (_collapseMark != null) _collapseMark.text = _tasksCollapsed ? "▼" : "▲";
         }
 
         public void ShowToast(string text, float seconds)

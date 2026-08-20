@@ -744,7 +744,8 @@ namespace Nebula.AI
         {
             if (Owner == null || !Owner.IsAlive) return SpeechAct.None;
             float now = Time.time;
-            if (now - _lastSpeechTime < 3.2f - Personality.Sociability * 1.6f) return SpeechAct.None;
+            // собственная пауза: даже самый разговорчивый не строчит очередями
+            if (now - _lastSpeechTime < 7.5f - Personality.Sociability * 3.2f) return SpeechAct.None;
 
             // very quiet personalities often just stay silent
             if (Rng.Chance(Mathf.Clamp01(0.55f - Personality.Sociability * 0.5f))) return SpeechAct.None;

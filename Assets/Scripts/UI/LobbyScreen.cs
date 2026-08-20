@@ -24,6 +24,10 @@ namespace Nebula.UI
         private MatchManager _match;
         private Text _title;
         private Text _roster;
+        private RectTransform _rosterPanel;
+        private RectTransform _rosterBody;
+        private Text _rosterMark;
+        private bool _rosterHidden;
         private Text _hint;
         private UnityEngine.UI.Button _startButton;
         private Transform _laptop;
@@ -52,10 +56,33 @@ namespace Nebula.UI
             _title = UIKit.Label(top, "КОМНАТА", Vector2.zero, new Vector2(820f, 80f), 34,
                                  TextAnchor.MiddleCenter, Art.TextMain, FontStyle.Bold);
 
-            var side = UIKit.Anchored(_root, "Roster", new Vector2(0f, 1f), new Vector2(26f, -150f), new Vector2(380f, 520f));
-            UIKit.PanelStretch(side, "Bg", new Color(0.04f, 0.06f, 0.10f, 0.78f), 16);
-            _roster = UIKit.Label(side, "", new Vector2(0f, -10f), new Vector2(350f, 490f), 24,
-                                  TextAnchor.UpperLeft, Art.TextMain);
+            // Список тех, кто в комнате, сворачивается по шапке — он занимал
+            // всю левую сторону и закрывал обзор.
+            _rosterPanel = UIKit.Anchored(_root, "Roster", new Vector2(0f, 1f), new Vector2(20f, -140f), new Vector2(360f, 500f));
+            UIKit.PanelStretch(_rosterPanel, "Bg", new Color(0.04f, 0.06f, 0.10f, 0.82f), 16);
+
+            var head = UIKit.Row(_rosterPanel, "Head", 6f, 6f, 0f, 44f);
+            head.anchorMin = new Vector2(0f, 1f);
+            head.anchorMax = new Vector2(1f, 1f);
+            head.pivot = new Vector2(0.5f, 1f);
+            head.anchoredPosition = new Vector2(0f, -6f);
+            UIKit.ButtonIn(head, "", ToggleRoster, new Color(0.09f, 0.13f, 0.20f, 0.92f), 20, 10);
+            UIKit.RowLabel(head, "В КОМНАТЕ", 14f, 50f, 0f, 38f, 22,
+                           TextAnchor.MiddleLeft, Art.TextMain, FontStyle.Bold);
+            _rosterMark = UIKit.RowLabel(head, "▲", 0f, 14f, 0f, 38f, 22,
+                                         TextAnchor.MiddleRight, Art.TextDim, FontStyle.Bold);
+
+            _rosterBody = UIKit.Region(_rosterPanel, "Body", Vector2.zero, Vector2.one, 0f);
+            _rosterBody.offsetMax = new Vector2(-10f, -54f);
+            _rosterBody.offsetMin = new Vector2(12f, 10f);
+            _roster = _rosterBody.gameObject.AddComponent<Text>();
+            _roster.font = Art.UiFont;
+            _roster.fontSize = 23;
+            _roster.color = Art.TextMain;
+            _roster.alignment = TextAnchor.UpperLeft;
+            _roster.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _roster.verticalOverflow = VerticalWrapMode.Truncate;
+            _roster.raycastTarget = false;
 
             _hint = UIKit.Label(_root, "", new Vector2(0f, -300f), new Vector2(900f, 60f), 26,
                                 TextAnchor.MiddleCenter, new Color(0.78f, 0.84f, 0.92f));
@@ -63,6 +90,14 @@ namespace Nebula.UI
             var startImg = UIKit.CircleButton(_root, "СТАРТ", new Vector2(0.5f, 0f), new Vector2(0f, 150f), 190f,
                                               new Color(0.22f, 0.68f, 0.38f, 0.95f), () => OnStart?.Invoke(), out _);
             _startButton = startImg.GetComponent<UnityEngine.UI.Button>();
+        }
+
+        private void ToggleRoster()
+        {
+            _rosterHidden = !_rosterHidden;
+            _rosterBody.gameObject.SetActive(!_rosterHidden);
+            _rosterPanel.sizeDelta = new Vector2(360f, _rosterHidden ? 56f : 500f);
+            if (_rosterMark != null) _rosterMark.text = _rosterHidden ? "▼" : "▲";
         }
 
         /// <summary>Ставит ноутбук у стола в столовой и включает экран лобби.</summary>
@@ -148,7 +183,6 @@ namespace Nebula.UI
                 : "КОД " + code + "  ·  " + _match.Players.Count + " участников";
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("<b>В КОМНАТЕ</b>");
             for (int i = 0; i < _match.Players.Count && i < 15; i++)
             {
                 var p = _match.Players[i];
