@@ -54,8 +54,13 @@ namespace Nebula.Gameplay
             if (Cam == null) return;
 
             Vector3 focus;
-            if (_match != null && _match.Phase != MatchPhase.Roaming && _match.Phase != MatchPhase.RoleReveal &&
-                StationView.Instance != null)
+            // В комнате ожидания камера должна ходить за игроком, как в раунде,
+            // а не улетать в центр стола для собраний.
+            bool followsPlayer = _match == null
+                                 || _match.Phase == MatchPhase.Roaming
+                                 || _match.Phase == MatchPhase.RoleReveal
+                                 || _match.Phase == MatchPhase.Lobby;
+            if (!followsPlayer && StationView.Instance != null)
             {
                 focus = StationView.Instance.MeetingCenter;
                 _targetHeight = 34f;

@@ -27,7 +27,9 @@ namespace Nebula.UI
 
         private readonly List<Image> _taskMarkers = new List<Image>();
         private readonly List<Image> _ventMarkers = new List<Image>();
+        private readonly List<Image> _crewMarkers = new List<Image>();
         private Image _selfMarker;
+        private Image _selfRing;
         private Image _sabotageMarker;
         private Text _deckLabel;
         private float _refreshTimer;
@@ -77,6 +79,7 @@ namespace Nebula.UI
             for (int i = _layer.childCount - 1; i >= 0; i--) Destroy(_layer.GetChild(i).gameObject);
             _taskMarkers.Clear();
             _ventMarkers.Clear();
+            _crewMarkers.Clear();
 
             foreach (var area in StationLayout.Areas)
             {
@@ -99,7 +102,12 @@ namespace Nebula.UI
                 }
             }
 
-            _selfMarker = UIKit.Icon(_layer, "Self", Art.Circle(48), Vector2.zero, new Vector2(14f, 14f), Color.white);
+            // своя точка крупнее прочих и с белым кольцом — иначе теряется среди чужих
+            var selfRing = UIKit.Icon(_layer, "SelfRing", Art.Circle(48), Vector2.zero, new Vector2(24f, 24f),
+                                      new Color(1f, 1f, 1f, 0.9f));
+            selfRing.raycastTarget = false;
+            _selfMarker = UIKit.Icon(selfRing.transform, "Self", Art.Circle(48), Vector2.zero, new Vector2(16f, 16f), Color.white);
+            _selfRing = selfRing;
             _sabotageMarker = UIKit.Icon(_layer, "Sabotage", Art.Circle(48, 6f), Vector2.zero, new Vector2(26f, 26f), Art.Danger);
             _sabotageMarker.gameObject.SetActive(false);
 
@@ -119,8 +127,42 @@ namespace Nebula.UI
             SetDeck(local.Deck);
 
             var cell = StationLayout.WorldToCell(local.Position);
-            _selfMarker.rectTransform.anchoredPosition = CellToLocal(cell.x, cell.y);
+            if (_selfRing != null) _selfRing.rectTransform.anchoredPosition = CellToLocal(cell.x, cell.y);
             _selfMarker.color = local.Color;
+
+            // В какой комнате ты сейчас — самое частое, что нужно знать, и раньше
+            // этого нигде не было написано.
+            if (_deckLabel != null)
+            {
+                var here = StationLayout.Get(local.RoomId);
+                string deckName = _deck == DeckId.Upper ? "ВЕРХНЯЯ ПАЛУБА" : "НИЖНЯЯ ПАЛУБА";
+                _deckLabel.text = here != null && here.Type == AreaType.Room
+                    ? deckName + "  ·  " + here.Name
+                    : deckName;
+            }
+
+            // точки тех, кого видно отсюда: помогает понять, кто рядом
+            int c = 0;
+            foreach (var p in _match.Players)
+            {
+                if (p == null || p == local || !p.IsAlive || p.InVent) continue;
+                if (p.Deck != _deck) continue;
+                if (!_match.CanSeePlayer(local, p)) continue;
+
+                Image dot;
+                if (c < _crewMarkers.Count) dot = _crewMarkers[c];
+                else
+                {
+                    dot = UIKit.Icon(_layer, "Crew", Art.Circle(48), Vector2.zero, new Vector2(11f, 11f), Color.white);
+                    _crewMarkers.Add(dot);
+                }
+                var pc = StationLayout.WorldToCell(p.Position);
+                dot.rectTransform.anchoredPosition = CellToLocal(pc.x, pc.y);
+                dot.color = p.Color;
+                dot.gameObject.SetActive(true);
+                c++;
+            }
+            for (int i = c; i < _crewMarkers.Count; i++) _crewMarkers[i].gameObject.SetActive(false);
 
             // task objectives
             int index = 0;

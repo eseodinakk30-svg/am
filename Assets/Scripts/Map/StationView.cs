@@ -13,6 +13,7 @@
 
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using Nebula.Core;
 using Nebula.Fx;
 
@@ -222,9 +223,47 @@ namespace Nebula.Map
         }
 
         // ------------------------------------------------------------------ dressing
+        /// <summary>
+        /// Табличка с названием комнаты под потолком. Станция большая и вся из
+        /// одинаковых серых отсеков — без подписей понять, где ты находишься,
+        /// можно было только по миникарте.
+        /// </summary>
+        private void BuildRoomSign(AreaDef area, Transform holder)
+        {
+            if (area.Type != AreaType.Room || string.IsNullOrEmpty(area.Name)) return;
+
+            var go = Child("Sign", holder);
+            go.transform.position = StationLayout.CellToWorld(area.Deck, area.CenterCell.x, area.CenterCell.y)
+                                    + Vector3.up * (StationLayout.WallHeight - 0.6f);
+            // камера смотрит сверху под фиксированным наклоном — разворачиваем табличку под него
+            go.transform.rotation = Quaternion.Euler(62f, 0f, 0f);
+
+            var canvas = go.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            var rt = canvas.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(520f, 90f);
+            rt.localScale = Vector3.one * 0.016f;
+
+            var textGo = Child("Text", go.transform);
+            var text = textGo.AddComponent<Text>();
+            text.font = Art.UiFont;
+            text.fontSize = 46;
+            text.fontStyle = FontStyle.Bold;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.text = area.Name.ToUpperInvariant();
+            text.color = new Color(0.78f, 0.88f, 1f, 0.42f);
+            text.raycastTarget = false;
+            var trt = text.rectTransform;
+            trt.sizeDelta = new Vector2(520f, 90f);
+            trt.anchoredPosition = Vector2.zero;
+        }
+
         private void BuildRoomDressing(AreaDef area, Transform deckRoot)
         {
             var holder = Child("Room_" + (area.Key ?? area.Id.ToString()), deckRoot).transform;
+            BuildRoomSign(area, holder);
             var rng = new NebulaRandom(area.Id * 7919 + 13);
             float y = DeckY(area.Deck);
 

@@ -101,7 +101,7 @@ namespace Nebula.UI
                 TextAnchor.UpperLeft, Art.TextMain);
 
             // ---- minimap ---------------------------------------------------
-            _minimap = MinimapView.Create(_root, _match, Vector2.zero, new Vector2(360f, 230f), false);
+            _minimap = MinimapView.Create(_root, _match, Vector2.zero, new Vector2(430f, 275f), true);
             var mm = (RectTransform)_minimap.transform;
             mm.anchorMin = mm.anchorMax = new Vector2(1f, 1f);
             mm.pivot = new Vector2(1f, 1f);

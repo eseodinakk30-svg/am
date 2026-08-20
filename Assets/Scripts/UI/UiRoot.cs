@@ -78,7 +78,11 @@ namespace Nebula.UI
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = UIKit.DesignResolution;
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 0.5f;
+            // Держимся за высоту, а не за середину: у современных телефонов экран
+            // сильно шире 16:9, и при среднем значении по вертикали оставалось
+            // около 815 условных единиц вместо 900 — верхние панели подрезало.
+            // По горизонтали лишнее место безвредно: весь HUD прижат к углам.
+            scaler.matchWidthOrHeight = 1f;
             canvasGo.AddComponent<GraphicRaycaster>();
 
             // ---- event system ----
