@@ -15,6 +15,16 @@ namespace Nebula.Core
         [Range(4, 15)] public int PlayerCount = 12;
         [Range(1, 3)] public int InfiltratorCount = 2;
 
+        // -- роли -----------------------------------------------------------
+        /// <summary>Кем достанется играть владельцу устройства.</summary>
+        public RoleWish MyRole = RoleWish.Random;
+        [Range(0, 3)] public int ScientistCount = 1;
+        [Range(0, 3)] public int EngineerCount = 1;
+        [Range(0, 2)] public int ShapeshifterCount = 1;
+        public float ScientistVitalsSeconds = 10f;
+        public float ShapeshiftDuration = 22f;
+        public float ShapeshiftCooldown = 30f;
+
         // -- movement / vision ----------------------------------------------
         public float MoveSpeed = 6.2f;
         public float CrewVision = 13f;

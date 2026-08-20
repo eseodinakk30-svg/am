@@ -56,7 +56,8 @@ namespace Nebula.Characters
         private float _phase;
         private float _speed01;
         private float _stateTime;
-        private float _facing = 1f;
+        private float _facing = 1f;   // -1 / +1, для анимаций смерти и призрака
+        private float _yaw;           // куда развёрнут корпус, градусы
         private Color _suit = Color.white;
         private bool _ghostMode;
         private bool _visible = true;
@@ -301,6 +302,29 @@ namespace Nebula.Characters
             GetComponentsInChildren(true, _renderers);
         }
 
+        // ------------------------------------------------------------------ облик оборотня
+        /// <summary>
+        /// Перекрашивает костюм и подменяет подпись — так выглядит принятый облик.
+        /// Меняется только внешний слой: сам игрок остаётся собой, и все проверки
+        /// в матче по-прежнему смотрят на его настоящий идентификатор.
+        /// </summary>
+        public void SetDisguise(int colorIndex, string label)
+        {
+            var suit = ColorBank.Get(colorIndex);
+            var shade = ColorBank.Shade(colorIndex, 0.55f);
+            if (_bodyRenderer != null) Art.Tint(_bodyRenderer, suit, _mpb);
+            if (_packRenderer != null) Art.Tint(_packRenderer, shade, _mpb);
+            if (_legLRenderer != null) Art.Tint(_legLRenderer, shade, _mpb);
+            if (_legRRenderer != null) Art.Tint(_legRRenderer, shade, _mpb);
+            if (_tagText != null) _tagText.text = label;
+        }
+
+        /// <summary>Возврат к собственной внешности.</summary>
+        public void ClearDisguise(int colorIndex, string label)
+        {
+            SetDisguise(colorIndex, label);
+        }
+
         // ------------------------------------------------------------------ api
         public void SetLabel(string text, Color color)
         {
@@ -344,9 +368,28 @@ namespace Nebula.Characters
 
         public void SetSpeed(float speed01) => _speed01 = Mathf.Clamp01(speed01);
 
+        /// <summary>
+        /// Разворот в сторону хода. Раньше сюда приходила только координата X, и
+        /// корпус лишь отражался влево-вправо: ноги при этом качались вдоль оси Z
+        /// независимо от направления, из-за чего при ходьбе вбок персонаж будто
+        /// скользил боком. Теперь корпус доворачивается по вектору движения, а
+        /// ноги качаются вдоль локального «вперёд», то есть по ходу.
+        /// </summary>
+        public void SetFacing(Vector3 dir)
+        {
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 0.0004f) return;
+            _yaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+            if (Mathf.Abs(dir.x) > 0.06f) _facing = Mathf.Sign(dir.x);
+        }
+
         public void SetFacing(float dirX)
         {
-            if (Mathf.Abs(dirX) > 0.06f) _facing = Mathf.Sign(dirX);
+            if (Mathf.Abs(dirX) > 0.06f)
+            {
+                _facing = Mathf.Sign(dirX);
+                _yaw = _facing >= 0f ? 90f : -90f;
+            }
         }
 
         public void SetState(AnimState state)
@@ -390,8 +433,8 @@ namespace Nebula.Characters
             _stateTime += dt;
 
             // face left/right without spinning the whole transform (top-down readability)
-            float targetYaw = _facing >= 0f ? 22f : -22f;
-            Root.localRotation = Quaternion.Slerp(Root.localRotation, Quaternion.Euler(0f, targetYaw, 0f), dt * 10f);
+            Root.localRotation = Quaternion.Slerp(Root.localRotation,
+                                                  Quaternion.Euler(0f, _yaw, 0f), 1f - Mathf.Exp(-13f * dt));
 
             switch (_state)
             {
@@ -472,7 +515,7 @@ namespace Nebula.Characters
         {
             float t = Mathf.Clamp01(_stateTime / 0.7f);
             float e = 1f - (1f - t) * (1f - t);
-            Root.localRotation = Quaternion.Euler(0f, _facing >= 0f ? 22f : -22f, e * 82f);
+            Root.localRotation = Quaternion.Euler(0f, _yaw, e * 82f);
             Root.localPosition = new Vector3(0f, -e * 0.42f, 0f);
             Root.localScale = new Vector3(1f, Mathf.Lerp(1f, 0.72f, e), 1f);
         }
@@ -521,7 +564,7 @@ namespace Nebula.Characters
         {
             _phase += dt * 1.9f;
             Root.localPosition = new Vector3(Mathf.Sin(_phase * 0.6f) * 0.06f, 0.42f + Mathf.Sin(_phase) * 0.12f, 0f);
-            Root.localRotation = Quaternion.Euler(0f, (_facing >= 0f ? 22f : -22f) + Mathf.Sin(_phase * 0.8f) * 7f, Mathf.Sin(_phase * 0.5f) * 5f);
+            Root.localRotation = Quaternion.Euler(0f, _yaw + Mathf.Sin(_phase * 0.8f) * 7f, Mathf.Sin(_phase * 0.5f) * 5f);
             if (LegL != null) LegL.localPosition = new Vector3(-0.26f, 0.16f + Mathf.Sin(_phase * 1.3f) * 0.05f, 0f);
             if (LegR != null) LegR.localPosition = new Vector3(0.26f, 0.16f + Mathf.Sin(_phase * 1.3f + 1f) * 0.05f, 0f);
         }

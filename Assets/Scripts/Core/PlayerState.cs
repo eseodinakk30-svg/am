@@ -27,6 +27,16 @@ namespace Nebula.Core
         public bool Connected = true;
 
         public Role Role = Role.Crew;
+        public SpecialRole Special = SpecialRole.None;
+
+        /// <summary>Кем сейчас выглядит оборотень; -1 — своим собственным обликом.</summary>
+        public int DisguisedAs = -1;
+        public float ShapeshiftLeft;
+        public float ShapeshiftCooldown;
+        public float VitalsCharge = 1f;
+
+        public bool IsImpostor => Role == Role.Infiltrator;
+        public bool CanUseVents => Role == Role.Infiltrator || Special == SpecialRole.Engineer;
         public LifeState Life = LifeState.Alive;
 
         public Vector3 Position;
@@ -90,6 +100,11 @@ namespace Nebula.Core
         public void ResetForNewMatch()
         {
             Role = Role.Crew;
+            Special = SpecialRole.None;
+            DisguisedAs = -1;
+            ShapeshiftLeft = 0f;
+            ShapeshiftCooldown = 0f;
+            VitalsCharge = 1f;
             Life = LifeState.Alive;
             Tasks.Clear();
             KillCooldown = 0f;

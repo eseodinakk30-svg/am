@@ -80,7 +80,7 @@ namespace Nebula.Characters
             if (Motor != null)
             {
                 Visual.SetSpeed(Motor.Speed01);
-                Visual.SetFacing(Motor.Velocity.x);
+                Visual.SetFacing(Motor.Facing);
                 if (Motor.MeasuredSpeed > 0.2f) State.LastMovedTime = Time.time;
             }
 

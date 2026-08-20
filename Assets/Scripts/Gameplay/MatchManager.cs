@@ -121,8 +121,6 @@ namespace Nebula.Gameplay
             Sabotage.Init(Settings, Station);
 
             BuildRoster(localName, humanSeats);
-            AssignRoles();
-            Tasks.AssignAll(Players, Settings, Rng);
             SpawnActors();
             CreateBrains();
 
@@ -133,8 +131,55 @@ namespace Nebula.Gameplay
             Reason = WinReason.None;
 
             GameEvents.RaiseMatchStarted();
+
+            // Сперва комната ожидания: все стоят в кафетерии, роли ещё никому не
+            // розданы. Раздача — по кнопке СТАРТ, как в оригинале жанра.
+            MoveEveryoneToLobby();
+            SetPhase(MatchPhase.Lobby, 0f);
+        }
+
+        /// <summary>Расставляет всех кружком у стола в кафетерии.</summary>
+        private void MoveEveryoneToLobby()
+        {
+            var cafe = StationLayout.Get("cafeteria");
+            Vector3 centre = cafe != null
+                ? StationLayout.CellToWorld(cafe.Deck, cafe.CenterCell.x, cafe.CenterCell.y)
+                : Vector3.zero;
+
+            for (int i = 0; i < Players.Count; i++)
+            {
+                float angle = i / Mathf.Max(1f, Players.Count) * Mathf.PI * 2f;
+                float radius = 3.4f + (i % 2) * 1.5f;
+                var pos = centre + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+                Players[i].Position = pos;
+                if (Players[i].View is Actor a && a.Motor != null) a.Motor.Teleport(pos);
+            }
+        }
+
+        /// <summary>Хост нажал СТАРТ: раздаём роли, задания и запускаем показ роли.</summary>
+        public void LaunchFromLobby()
+        {
+            if (Phase != MatchPhase.Lobby) return;
+
+            Settings.Validate();
+            AssignRoles();
+            Tasks.AssignAll(Players, Settings, Rng);
+            SpawnAtStartPoints();
+
             SetPhase(MatchPhase.RoleReveal, 4f);
             Tasks.RefreshMarkers(Local);
+        }
+
+        private void SpawnAtStartPoints()
+        {
+            var spawns = Station != null ? Station.SpawnPoints : new List<Vector3>();
+            if (spawns.Count == 0) return;
+            for (int i = 0; i < Players.Count; i++)
+            {
+                var pos = spawns[i % spawns.Count];
+                Players[i].Position = pos;
+                if (Players[i].View is Actor a && a.Motor != null) a.Motor.Teleport(pos);
+            }
         }
 
         private void BuildRoster(string localName, int humanSeats)
@@ -214,11 +259,137 @@ namespace Nebula.Gameplay
             var order = new List<PlayerState>(Players);
             Rng.Shuffle(order);
             int infiltrators = Mathf.Clamp(Settings.InfiltratorCount, 1, Mathf.Max(1, (Players.Count - 1) / 3));
+
+            // Пожелание владельца устройства выполняем до общей раздачи: иначе
+            // предатель выпадал бы ему раз в семь-восемь матчей, и посмотреть на
+            // эту половину игры было бы попросту нечем.
+            if (Local != null && Settings.MyRole != RoleWish.Random)
+            {
+                order.Remove(Local);
+                if (Settings.MyRole == RoleWish.AlwaysInfiltrator)
+                {
+                    Local.Role = Role.Infiltrator;
+                    infiltrators--;
+                }
+                else
+                {
+                    Local.Role = Role.Crew;
+                }
+            }
+
             for (int i = 0; i < infiltrators && i < order.Count; i++)
                 order[i].Role = Role.Infiltrator;
 
+            AssignSpecialRoles();
+
             foreach (var p in Players)
                 p.KillCooldown = p.Role == Role.Infiltrator ? Settings.FirstKillDelay : 0f;
+        }
+
+        /// <summary>Профессии поверх стороны. Раздаются отдельно и на условия победы не влияют.</summary>
+        private void AssignSpecialRoles()
+        {
+            var crew = new List<PlayerState>();
+            var impostors = new List<PlayerState>();
+            foreach (var p in Players)
+            {
+                if (p.Role == Role.Infiltrator) impostors.Add(p);
+                else crew.Add(p);
+            }
+            Rng.Shuffle(crew);
+            Rng.Shuffle(impostors);
+
+            int idx = 0;
+            for (int i = 0; i < Settings.ScientistCount && idx < crew.Count; i++, idx++)
+                crew[idx].Special = SpecialRole.Scientist;
+            for (int i = 0; i < Settings.EngineerCount && idx < crew.Count; i++, idx++)
+                crew[idx].Special = SpecialRole.Engineer;
+
+            for (int i = 0; i < Settings.ShapeshifterCount && i < impostors.Count; i++)
+                impostors[i].Special = SpecialRole.Shapeshifter;
+        }
+
+        // ------------------------------------------------------------------ профессии
+        private void TickSpecialRoles(float dt)
+        {
+            for (int i = 0; i < Players.Count; i++)
+            {
+                var p = Players[i];
+                if (p == null) continue;
+
+                if (p.ShapeshiftCooldown > 0f) p.ShapeshiftCooldown -= dt;
+
+                if (p.DisguisedAs >= 0)
+                {
+                    p.ShapeshiftLeft -= dt;
+                    // облик слетает сам по времени и мгновенно — если носитель погиб
+                    if (p.ShapeshiftLeft <= 0f || !p.IsAlive) EndShapeshift(p);
+                }
+
+                // заряд показателей жизни медленно восстанавливается
+                if (p.Special == SpecialRole.Scientist && p.VitalsCharge < 1f)
+                    p.VitalsCharge = Mathf.Min(1f, p.VitalsCharge + dt / 90f);
+            }
+        }
+
+        public bool CanShapeshift(PlayerState p)
+        {
+            return p != null && p.IsAlive && p.Special == SpecialRole.Shapeshifter
+                   && p.DisguisedAs < 0 && p.ShapeshiftCooldown <= 0f
+                   && Phase == MatchPhase.Roaming;
+        }
+
+        public void BeginShapeshift(PlayerState self, PlayerState target)
+        {
+            if (!CanShapeshift(self) || target == null) return;
+
+            self.DisguisedAs = target.Id;
+            self.ShapeshiftLeft = Settings.ShapeshiftDuration;
+            self.ShapeshiftCooldown = Settings.ShapeshiftCooldown + Settings.ShapeshiftDuration;
+
+            if (self.View is Actor a)
+                a.Visual.SetDisguise(target.ColorIndex, target.Label);
+        }
+
+        public void EndShapeshift(PlayerState self)
+        {
+            if (self == null || self.DisguisedAs < 0) return;
+            self.DisguisedAs = -1;
+            self.ShapeshiftLeft = 0f;
+            if (self.View is Actor a)
+                a.Visual.ClearDisguise(self.ColorIndex, self.Label);
+        }
+
+        /// <summary>Название роли для экрана показа и для списка на собрании.</summary>
+        public static string RoleTitle(PlayerState p)
+        {
+            if (p == null) return "";
+            if (p.Role == Role.Infiltrator)
+                return p.Special == SpecialRole.Shapeshifter ? "ОБОРОТЕНЬ" : "ДИВЕРСАНТ";
+            switch (p.Special)
+            {
+                case SpecialRole.Scientist: return "УЧЁНЫЙ";
+                case SpecialRole.Engineer: return "ИНЖЕНЕР";
+                default: return "ЭКИПАЖ";
+            }
+        }
+
+        public static string RoleHint(PlayerState p)
+        {
+            if (p == null) return "";
+            if (p.Role == Role.Infiltrator)
+                return p.Special == SpecialRole.Shapeshifter
+                    ? "Убивай, ходи по вентиляции и на время принимай облик любого из экипажа."
+                    : "Убивай экипаж, ходи по вентиляции и ломай станцию так, чтобы никто не понял.";
+            switch (p.Special)
+            {
+                case SpecialRole.Scientist:
+                    return "Выполняй задания. В любой момент можешь посмотреть, кто ещё жив, — заряд тратится.";
+                case SpecialRole.Engineer:
+                    return "Выполняй задания. Тебе, единственному из экипажа, открыта вентиляция.";
+                default:
+                    return "Выполняй задания и вычисли диверсантов раньше, чем они вычислят вас.";
+            }
         }
 
         private void SpawnActors()
@@ -256,7 +427,8 @@ namespace Nebula.Gameplay
             PhaseTimer = duration;
             GameEvents.RaisePhaseChanged(phase);
 
-            bool frozen = phase != MatchPhase.Roaming;
+            // В лобби все ходят свободно — это отдельная комната ожидания, а не пауза.
+            bool frozen = phase != MatchPhase.Roaming && phase != MatchPhase.Lobby;
             foreach (var p in Players)
             {
                 if (p.View is Actor a && a.Motor != null)
@@ -290,6 +462,7 @@ namespace Nebula.Gameplay
 
                 case MatchPhase.Roaming:
                     TickRoaming(dt);
+                    TickSpecialRoles(dt);
                     break;
 
                 case MatchPhase.MeetingIntro:

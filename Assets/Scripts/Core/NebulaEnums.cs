@@ -5,10 +5,31 @@
 namespace Nebula.Core
 {
     /// <summary>Secret allegiance handed out at the start of a match.</summary>
+    /// <summary>Сторона в матче. Намеренно осталась из двух значений: от неё зависят
+    /// условия победы, видимость и вся логика ИИ. Профессия внутри стороны — отдельно,
+    /// в <see cref="SpecialRole"/>.</summary>
     public enum Role
     {
         Crew = 0,
         Infiltrator = 1,
+    }
+
+    /// <summary>Профессия поверх стороны. Не влияет на условия победы.</summary>
+    public enum SpecialRole
+    {
+        None = 0,
+        Scientist = 1,     // экипаж: карманные показатели жизни
+        Engineer = 2,      // экипаж: умеет лазить по вентиляции
+        Shapeshifter = 3,  // предатель: временно принимает облик другого
+    }
+
+    /// <summary>Чем играет владелец устройства. Нужен, чтобы можно было гарантированно
+    /// получить предателя, а не ждать своей очереди случайно.</summary>
+    public enum RoleWish
+    {
+        Random = 0,
+        AlwaysCrew = 1,
+        AlwaysInfiltrator = 2,
     }
 
     public enum LifeState

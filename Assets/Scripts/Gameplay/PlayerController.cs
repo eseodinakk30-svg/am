@@ -36,6 +36,10 @@ namespace Nebula.Gameplay
         public System.Action OnRequestCameras;
         public System.Action OnRequestAdmin;
         public System.Action OnRequestSabotageMenu;
+        public System.Action OnRequestVitals;
+        public System.Action OnRequestShapeshift;
+        public System.Action OnRequestLobbyConsole;
+        public System.Func<bool> IsNearLobbyLaptop;
 
         public PlayerState Self => _self;
 
@@ -67,7 +71,9 @@ namespace Nebula.Gameplay
             UseHeld |= Input.GetKey(KeyCode.E);
 #endif
 
-            bool canMove = _match.Phase == MatchPhase.Roaming && !_self.InVent;
+            // ходить можно и в комнате ожидания — там для этого всё и затевалось
+            bool canMove = (_match.Phase == MatchPhase.Roaming || _match.Phase == MatchPhase.Lobby)
+                           && !_self.InVent;
             _actor.Motor.SetInput(canMove ? input : Vector2.zero);
 
             if (UseHeld) TickHoldInteraction();
@@ -93,6 +99,13 @@ namespace Nebula.Gameplay
 
         public void DoUse()
         {
+            // в комнате ожидания единственное действие — открыть консоль у ноутбука
+            if (_match.Phase == MatchPhase.Lobby)
+            {
+                if (IsNearLobbyLaptop != null && IsNearLobbyLaptop()) OnRequestLobbyConsole?.Invoke();
+                return;
+            }
+
             if (_match.Phase != MatchPhase.Roaming) return;
 
             // 1. elevator
@@ -183,7 +196,8 @@ namespace Nebula.Gameplay
 
         public bool CanVent()
         {
-            if (_match == null || _self == null || _self.Role != Role.Infiltrator || !_self.IsAlive) return false;
+            // вентиляция открыта диверсантам и, отдельной привилегией, инженеру
+            if (_match == null || _self == null || !_self.CanUseVents || !_self.IsAlive) return false;
             if (_self.InVent) return true;
             var view = StationView.Instance;
             return view != null && view.NearestVent(_self.Position, _self.Deck, 2.6f) != null;
@@ -211,6 +225,21 @@ namespace Nebula.Gameplay
                                      _self.IsAlive && _match.Phase == MatchPhase.Roaming;
 
         public void OpenSabotage() => OnRequestSabotageMenu?.Invoke();
+
+        /// <summary>Умение профессии: у учёного — показатели жизни, у оборотня — выбор облика.</summary>
+        public void UseRoleAbility()
+        {
+            if (_self == null) return;
+            if (_self.Special == SpecialRole.Scientist)
+            {
+                if (_self.VitalsCharge > 0.05f) OnRequestVitals?.Invoke();
+            }
+            else if (_self.Special == SpecialRole.Shapeshifter)
+            {
+                if (_self.DisguisedAs >= 0) _match.EndShapeshift(_self);
+                else if (_match.CanShapeshift(_self)) OnRequestShapeshift?.Invoke();
+            }
+        }
 
         public void CompleteTaskStage(TaskInstance task)
         {

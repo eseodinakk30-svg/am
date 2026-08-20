@@ -33,6 +33,11 @@ namespace Nebula.UI
         private MainMenuScreen _menu;
         private HudController _hud;
         private MeetingScreen _meeting;
+        private RoleRevealScreen _roleReveal;
+        private VitalsView _vitals;
+        private ShapeshiftView _shapeshift;
+        private LobbyScreen _lobby;
+        private LobbyConsole _console;
         private GameOverScreen _gameOver;
         private TaskWindow _taskWindow;
         private SabotageMenu _sabotageMenu;
@@ -103,6 +108,12 @@ namespace Nebula.UI
             _cameras = CamerasView.Create(_gameLayer, _match);
             _admin = AdminView.Create(_gameLayer, _match);
             _bigMap = BigMapView.Create(_gameLayer, _match);
+            _roleReveal = RoleRevealScreen.Create(_gameLayer);
+            _vitals = VitalsView.Create(_gameLayer, _match);
+            _shapeshift = ShapeshiftView.Create(_gameLayer, _match);
+            _lobby = LobbyScreen.Create(_gameLayer, _match);
+            _console = LobbyConsole.Create(_gameLayer, null);
+            _lobby.OnStart = () => { _console.Close(); _match.LaunchFromLobby(); };
 
             _gameOver = GameOverScreen.Create(SafeArea, _match);
             _gameOver.OnPlayAgain = Restart;
@@ -117,6 +128,10 @@ namespace Nebula.UI
             _player.OnRequestSabotageMenu = () => _sabotageMenu.Open();
             _player.OnRequestCameras = () => _cameras.Open();
             _player.OnRequestAdmin = () => _admin.Open();
+            _player.OnRequestVitals = () => _vitals.Open();
+            _player.OnRequestShapeshift = () => _shapeshift.Open();
+            _player.OnRequestLobbyConsole = () => _console.Open();
+            _player.IsNearLobbyLaptop = () => _lobby.PlayerNearLaptop(_match.Local);
 
             if (_bridge != null) _bridge.OnRemoteRoster = OnRemoteRoster;
 
@@ -131,6 +146,18 @@ namespace Nebula.UI
 
         private void OnPhaseChanged(MatchPhase phase)
         {
+            if (_lobby != null)
+            {
+                if (phase == MatchPhase.Lobby) _lobby.Show(_match.transform);
+                else _lobby.Hide();
+            }
+            if (phase != MatchPhase.Lobby && _console != null && _console.IsOpen) _console.Close();
+
+            if (phase == MatchPhase.RoleReveal && _roleReveal != null)
+                _roleReveal.Show(_match.Local, _match.Players, 4f);
+            else if (_roleReveal != null)
+                _roleReveal.Hide();
+
             if (phase == MatchPhase.GameOver) return;
             if (phase != MatchPhase.Roaming)
             {
@@ -139,6 +166,8 @@ namespace Nebula.UI
                 if (_cameras.IsOpen) _cameras.Close();
                 if (_admin.IsOpen) _admin.Close();
                 if (_bigMap.IsOpen) _bigMap.Close();
+                if (_vitals.IsOpen) _vitals.Close();
+                if (_shapeshift.IsOpen) _shapeshift.Close();
             }
         }
 

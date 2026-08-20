@@ -33,6 +33,8 @@ namespace Nebula.UI
         private Text _repairLabel;
         private MinimapView _minimap;
         private RectTransform _ventPanel;
+        private Image _roleButton;          // «ЖИЗНИ» у учёного, «ОБЛИК» у оборотня
+        private Text _roleButtonLabel;
         private float _toastTimer;
         private float _roleRevealTimer;
 
@@ -81,6 +83,11 @@ namespace Nebula.UI
 
             _emergencyButton = UIKit.CircleButton(_root, "СБОР", anchor, new Vector2(sx * -480f, 160f), 120f,
                 new Color(0.90f, 0.42f, 0.18f, 0.92f), () => _player.DoEmergency(), out _emergencyLabel);
+
+            // Одна кнопка на профессию: у учёного это показатели жизни, у оборотня —
+            // выбор облика. Обычному экипажу и рядовому диверсанту она не показывается.
+            _roleButton = UIKit.CircleButton(_root, "", anchor, new Vector2(sx * -480f, 330f), 120f,
+                new Color(0.28f, 0.55f, 0.48f, 0.92f), () => _player.UseRoleAbility(), out _roleButtonLabel);
 
             // ---- objectives ------------------------------------------------
             var taskPanel = UIKit.Anchored(_root, "Tasks", new Vector2(0f, 1f), new Vector2(24f, -24f), new Vector2(470f, 360f));
@@ -151,9 +158,18 @@ namespace Nebula.UI
         private void OnPhase(MatchPhase phase)
         {
             bool inRound = phase == MatchPhase.Roaming || phase == MatchPhase.RoleReveal;
+            bool lobby = phase == MatchPhase.Lobby;
             _root.gameObject.SetActive(true);
-            foreach (var img in new[] { _useButton, _killButton, _reportButton, _ventButton, _sabotageButton, _emergencyButton })
+
+            // В лобби из всего управления нужны только стик и «ДЕЙСТВИЕ» для ноутбука.
+            foreach (var img in new[] { _killButton, _reportButton, _ventButton, _sabotageButton, _emergencyButton, _roleButton })
                 if (img != null) img.gameObject.SetActive(inRound);
+            if (_useButton != null) _useButton.gameObject.SetActive(inRound || lobby);
+
+            // список заданий и полоска прогресса в комнате ожидания ни к чему
+            if (_roleText != null) _roleText.transform.parent.gameObject.SetActive(!lobby);
+            if (_minimap != null) _minimap.gameObject.SetActive(!lobby);
+
             if (phase == MatchPhase.RoleReveal) _roleRevealTimer = 4f;
         }
 
@@ -191,9 +207,10 @@ namespace Nebula.UI
         {
             bool impostor = local.Role == Role.Infiltrator;
             bool alive = local.IsAlive;
+            bool vents = local.CanUseVents;   // диверсанты и инженер
 
             _killButton.gameObject.SetActive(impostor && alive);
-            _ventButton.gameObject.SetActive(impostor && alive);
+            _ventButton.gameObject.SetActive(vents && alive);
             _sabotageButton.gameObject.SetActive(impostor && alive);
 
             if (impostor && alive)
@@ -204,10 +221,16 @@ namespace Nebula.UI
                 _killCooldownRing.fillAmount = _match.Settings.KillCooldown > 0.01f
                     ? Mathf.Clamp01(cd / _match.Settings.KillCooldown) : 0f;
                 _killLabel.text = cd > 0.05f ? Mathf.CeilToInt(cd).ToString() : "УБИТЬ";
-                SetInteractable(_ventButton, _player.CanVent());
-                _ventLabel.text = local.InVent ? "ВЫЙТИ" : "ВЕНТ";
                 SetInteractable(_sabotageButton, _player.CanSabotage());
             }
+
+            if (vents && alive)
+            {
+                SetInteractable(_ventButton, _player.CanVent());
+                _ventLabel.text = local.InVent ? "ВЫЙТИ" : "ВЕНТ";
+            }
+
+            UpdateRoleButton(local, alive);
 
             bool canReport = _player.CanReport(out _);
             _reportButton.gameObject.SetActive(alive);
@@ -255,13 +278,44 @@ namespace Nebula.UI
             button.color = c;
         }
 
+        private void UpdateRoleButton(PlayerState local, bool alive)
+        {
+            if (_roleButton == null) return;
+
+            bool scientist = local.Special == SpecialRole.Scientist;
+            bool shifter = local.Special == SpecialRole.Shapeshifter;
+            bool show = alive && (scientist || shifter);
+            _roleButton.gameObject.SetActive(show);
+            if (!show) return;
+
+            if (scientist)
+            {
+                _roleButton.color = new Color(0.28f, 0.55f, 0.48f, 0.92f);
+                _roleButtonLabel.text = "ЖИЗНИ";
+                SetInteractable(_roleButton, local.VitalsCharge > 0.05f);
+            }
+            else
+            {
+                _roleButton.color = new Color(0.48f, 0.22f, 0.52f, 0.92f);
+                bool ready = _match.CanShapeshift(local);
+                _roleButtonLabel.text = local.DisguisedAs >= 0
+                    ? Mathf.CeilToInt(local.ShapeshiftLeft).ToString()
+                    : local.ShapeshiftCooldown > 0.05f
+                        ? Mathf.CeilToInt(local.ShapeshiftCooldown).ToString()
+                        : "ОБЛИК";
+                SetInteractable(_roleButton, ready);
+            }
+        }
+
         private void UpdateObjectives(PlayerState local)
         {
             if (_roleText == null) return;
 
             bool impostor = local.Role == Role.Infiltrator;
-            string roleName = impostor ? "<color=#EA4B4F>ПРЕДАТЕЛЬ</color>" : "<color=#5ED27E>ЭКИПАЖ</color>";
+            string tint = impostor ? "#EA4B4F" : "#5ED27E";
+            string roleName = "<color=" + tint + ">" + MatchManager.RoleTitle(local) + "</color>";
             string status = local.IsGhost ? " (призрак)" : "";
+            if (local.DisguisedAs >= 0) status += " — в чужом облике";
             _roleText.text = roleName + status;
 
             _progressBar.fillAmount = _match.Tasks != null ? _match.Tasks.CrewProgress : 0f;
@@ -294,9 +348,7 @@ namespace Nebula.UI
                 var local = _match.Local;
                 bool imp = local != null && local.Role == Role.Infiltrator;
                 _alertPanel.color = imp ? new Color(0.55f, 0.10f, 0.12f, 0.94f) : new Color(0.10f, 0.35f, 0.45f, 0.94f);
-                _alertText.text = imp
-                    ? "ТЫ ПРЕДАТЕЛЬ — устрани экипаж или саботируй станцию"
-                    : "ТЫ ЧЛЕН ЭКИПАЖА — выполни задания и найди предателей";
+                _alertText.text = MatchManager.RoleTitle(local) + " — " + MatchManager.RoleHint(local);
                 _timerText.text = "";
                 return;
             }
@@ -338,7 +390,7 @@ namespace Nebula.UI
 
         private void UpdateVentPanel(PlayerState local)
         {
-            bool show = local.InVent && local.Role == Role.Infiltrator;
+            bool show = local.InVent && local.CanUseVents;
             if (_ventPanel.gameObject.activeSelf != show) _ventPanel.gameObject.SetActive(show);
             if (!show) return;
 
