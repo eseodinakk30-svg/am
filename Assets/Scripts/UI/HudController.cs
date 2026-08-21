@@ -586,26 +586,41 @@ namespace Nebula.UI
                 : "УДЕРЖИВАЙ ДЕЙСТВИЕ";
         }
 
+        private int _ventPanelVentId = int.MinValue;
+
         private void UpdateVentPanel(PlayerState local)
         {
             bool show = local.InVent && local.CanUseVents;
             if (_ventPanel.gameObject.activeSelf != show) _ventPanel.gameObject.SetActive(show);
-            if (!show) return;
+            if (!show) { _ventPanelVentId = int.MinValue; return; }
 
             var targets = _player.VentTargets();
-            // rebuild only when the count changes
-            if (_ventPanel.childCount != targets.Count)
+
+            // Раньше кнопки пересобирались только при смене их количества. Внутри
+            // одной сети вентиляции количество всегда одно и то же (все венты сети,
+            // кроме текущего), поэтому после первого же перехода кнопки оставались
+            // от прошлого венте: в списке был тот, где ты уже сидишь, и не было того,
+            // откуда пришёл. Ключ — идентификатор текущего венте.
+            if (_ventPanelVentId == local.VentId && _ventPanel.childCount == targets.Count) return;
+            _ventPanelVentId = local.VentId;
+
+            // сначала отвязываем, потом удаляем: Destroy отложен до конца кадра,
+            // и childCount иначе остаётся прежним
+            for (int i = _ventPanel.childCount - 1; i >= 0; i--)
             {
-                for (int i = _ventPanel.childCount - 1; i >= 0; i--) Destroy(_ventPanel.GetChild(i).gameObject);
-                float step = 240f;
-                float start = -(targets.Count - 1) * step * 0.5f;
-                for (int i = 0; i < targets.Count; i++)
-                {
-                    var vent = targets[i];
-                    string name = StationLayout.NameOf(vent.RoomId);
-                    UIKit.Button(_ventPanel, name, new Vector2(start + i * step, 0f), new Vector2(step - 16f, 76f),
-                        () => _player.HopVent(vent), new Color(0.35f, 0.22f, 0.16f, 0.94f), 22, 14);
-                }
+                var child = _ventPanel.GetChild(i);
+                child.SetParent(null, false);
+                Destroy(child.gameObject);
+            }
+
+            float step = 240f;
+            float start = -(targets.Count - 1) * step * 0.5f;
+            for (int i = 0; i < targets.Count; i++)
+            {
+                var vent = targets[i];
+                string name = StationLayout.NameOf(vent.RoomId);
+                UIKit.Button(_ventPanel, name, new Vector2(start + i * step, 0f), new Vector2(step - 16f, 76f),
+                    () => _player.HopVent(vent), new Color(0.35f, 0.22f, 0.16f, 0.94f), 22, 14);
             }
         }
     }
