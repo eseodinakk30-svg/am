@@ -310,7 +310,8 @@ namespace Nebula.UI
 
         private void SetCameras(bool on)
         {
-            SecurityCameraUnit.AnyoneWatching = on;
+            if (on) SecurityCameraUnit.ReportWatching();
+            else SecurityCameraUnit.ResetWatching();
             var view = StationView.Instance;
             if (view == null) return;
             // питание дают только тем камерам, чью картинку панель действительно
@@ -320,8 +321,13 @@ namespace Nebula.UI
 
         private void Update()
         {
+            if (!IsOpen) return;
+            // пока панель открыта, лампочки камер должны гореть — это подсказка
+            // остальным, что за ними сейчас смотрят
+            SecurityCameraUnit.ReportWatching();
+
             // stepping away from the console closes the feed
-            if (!IsOpen || _match == null || _match.Local == null) return;
+            if (_match == null || _match.Local == null) return;
             var security = StationLayout.Get("security");
             if (security != null && _match.Local.RoomId != security.Id) Close();
         }

@@ -495,14 +495,18 @@ namespace Nebula.UI
             }
             else
             {
-                _roleButton.color = new Color(0.48f, 0.22f, 0.52f, 0.92f);
-                bool ready = _match.CanShapeshift(local);
-                _roleButtonLabel.text = local.DisguisedAs >= 0
-                    ? Mathf.CeilToInt(local.ShapeshiftLeft).ToString()
+                bool disguised = local.DisguisedAs >= 0;
+                _roleButton.color = disguised
+                    ? new Color(0.62f, 0.30f, 0.34f, 0.92f)
+                    : new Color(0.48f, 0.22f, 0.52f, 0.92f);
+                _roleButtonLabel.text = disguised
+                    ? "СНЯТЬ " + Mathf.CeilToInt(local.ShapeshiftLeft)
                     : local.ShapeshiftCooldown > 0.05f
                         ? Mathf.CeilToInt(local.ShapeshiftCooldown).ToString()
                         : "ОБЛИК";
-                SetInteractable(_roleButton, ready);
+                // пока облик надет, кнопка обязана оставаться нажимаемой — иначе
+                // снять его досрочно нельзя, а CanShapeshift в этот момент ложна
+                SetInteractable(_roleButton, disguised || _match.CanShapeshift(local));
             }
         }
 

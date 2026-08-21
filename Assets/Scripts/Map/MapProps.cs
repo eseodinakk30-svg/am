@@ -150,7 +150,17 @@ namespace Nebula.Map
         private Renderer _indicatorRenderer;
         private float _blink;
 
-        public static bool AnyoneWatching;
+        // Раньше это был просто bool: NPC ставил его в true и никогда не снимал,
+        // поэтому лампочки камер после первого же наблюдателя горели до конца
+        // матча и переставали что-либо значить. Теперь это отметка времени —
+        // тот, кто смотрит, обновляет её каждый кадр, и признак гаснет сам.
+        private static float _lastWatchTime = -99f;
+
+        public static void ReportWatching() => _lastWatchTime = Time.time;
+
+        public static bool AnyoneWatching => Time.time - _lastWatchTime < 0.6f;
+
+        public static void ResetWatching() => _lastWatchTime = -99f;
 
         public void Init(CameraDef def, Camera cam, RenderTexture rt, Transform indicator)
         {

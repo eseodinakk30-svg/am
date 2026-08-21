@@ -141,6 +141,9 @@ namespace Nebula.AI
 
                 float score = act.Priority * Mathf.Lerp(0.55f, 1.35f, brain.Personality.SpeakUrgency);
                 score *= _rng.Range(0.82f, 1.18f);
+                // к кому обратились — тот и отвечает: без этого прямой вопрос
+                // игрока тонул в общей очереди
+                score *= 1f + brain.SpeakUrge;
                 if (score > bestScore)
                 {
                     bestScore = score;
@@ -275,6 +278,15 @@ namespace Nebula.AI
                 if (listener == null || p.Id == speaker.Id) continue;
                 listener.HearSpeech(speaker, act, text);
             }
+
+            // Реплика игрока раньше только меняла внутреннее состояние агентов, а
+            // очередь высказываний шла своим темпом раз в четыре секунды — со
+            // стороны выходило, что игроку никто не отвечает. Теперь его сообщение
+            // сдвигает очередь: кто-то отзовётся через секунду-полторы.
+            _beatTimer = Mathf.Min(_beatTimer, _rng.Range(0.9f, 1.9f));
+
+            // и тот, к кому обратились, получает право голоса вне очереди
+            if (act.TargetId >= 0 && _lastSpeaker == act.TargetId) _lastSpeaker = -1;
         }
 
         /// <summary>

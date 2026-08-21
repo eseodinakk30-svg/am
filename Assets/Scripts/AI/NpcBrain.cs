@@ -27,6 +27,9 @@ namespace Nebula.AI
     {
         public PlayerState Owner { get; private set; }
         public MatchManager Match { get; private set; }
+        /// <summary>Насколько агенту сейчас не терпится ответить (0..2).</summary>
+        public float SpeakUrge => _urgeToSpeak;
+
         public AgentPersonality Personality { get; private set; }
         public AgentMemory Memory { get; private set; }
         public Perception Sense { get; private set; }
@@ -52,6 +55,7 @@ namespace Nebula.AI
         private readonly HashSet<int> _accusedThisMeeting = new HashSet<int>();
         private readonly List<int> _accusersOfMe = new List<int>();
         private int _pendingQuestionFrom = -1;
+        private float _urgeToSpeak;          // подскакивает, когда к агенту обратились
         private bool _saidAlibi;
         private bool _saidGreeting;
         private bool _needDefense;
@@ -614,7 +618,8 @@ namespace Nebula.AI
 
         private void WatchCameras(float dt)
         {
-            SecurityCameraUnit.AnyoneWatching = true;
+            // отмечаемся каждый кадр — признак сам погаснет, когда агент уйдёт
+            SecurityCameraUnit.ReportWatching();
             var view = StationView.Instance;
             if (view == null) return;
 
@@ -628,8 +633,10 @@ namespace Nebula.AI
                 {
                     if (!p.IsAlive || p.Id == Owner.Id) continue;
                     if (p.RoomId != cam.RoomId) continue;
+                    // на записи виден облик, а не носитель — как и при личной встрече
+                    int seen = p.DisguisedAs >= 0 ? p.DisguisedAs : p.Id;
                     // camera footage is grainy: lower confidence than seeing in person
-                    Memory.Add(MemoryKind.Sighting, p.Id, -1, p.RoomId, p.Deck, Match.MatchTime, 0.6f);
+                    Memory.Add(MemoryKind.Sighting, seen, -1, p.RoomId, p.Deck, Match.MatchTime, 0.6f);
                 }
             }
 
@@ -746,11 +753,20 @@ namespace Nebula.AI
         {
             if (Owner == null || !Owner.IsAlive) return SpeechAct.None;
             float now = Time.time;
+
+            // К агенту только что обратились — пауза и молчаливость отступают,
+            // иначе на прямой вопрос игроку никто не отвечал.
+            bool addressed = _urgeToSpeak > 0.9f;
+
             // собственная пауза: даже самый разговорчивый не строчит очередями
-            if (now - _lastSpeechTime < 7.5f - Personality.Sociability * 3.2f) return SpeechAct.None;
+            float pause = 7.5f - Personality.Sociability * 3.2f;
+            if (addressed) pause *= 0.3f;
+            if (now - _lastSpeechTime < pause) return SpeechAct.None;
 
             // very quiet personalities often just stay silent
-            if (Rng.Chance(Mathf.Clamp01(0.55f - Personality.Sociability * 0.5f))) return SpeechAct.None;
+            float silence = Mathf.Clamp01(0.55f - Personality.Sociability * 0.5f);
+            if (addressed) silence *= 0.25f;
+            if (Rng.Chance(silence)) return SpeechAct.None;
 
             var act = SpeechAct.None;
             act.AboutTime = LastRelevantTime(meeting);
@@ -927,6 +943,7 @@ namespace Nebula.AI
         public void OnSpoke(SpeechAct act)
         {
             _lastSpeechTime = Time.time;
+            _urgeToSpeak = 0f;   // высказался — очередь снова общая
 
             switch (act.Intent)
             {
@@ -1020,7 +1037,23 @@ namespace Nebula.AI
                 case SpeechIntent.Question:
                     if (act.TargetId == Owner.Id) _pendingQuestionFrom = speaker.Id;
                     break;
+
+                case SpeechIntent.Doubt:
+                case SpeechIntent.SkipCall:
+                    // Обычная реплика без явного обвинения раньше не давала вообще
+                    // ничего — игроку казалось, что он пишет в стену. Теперь она
+                    // хотя бы попадает в разговор: названного разбирают, а сам
+                    // говорящий перестаёт быть «молчуном».
+                    if (act.TargetId == Owner.Id) _pendingQuestionFrom = speaker.Id;
+                    else if (act.TargetId >= 0)
+                        Suspicion.AddTrust(act.TargetId, -0.18f * Personality.RumourWeight);
+                    break;
             }
+
+            // Кто-то заговорил напрямую с агентом — ему есть что ответить, и
+            // он должен захотеть высказаться раньше очереди.
+            if (act.TargetId == Owner.Id) _urgeToSpeak = Mathf.Max(_urgeToSpeak, 1.6f);
+            else if (speaker.IsLocal) _urgeToSpeak = Mathf.Max(_urgeToSpeak, 0.5f);
 
             Suspicion.Evaluate();
         }

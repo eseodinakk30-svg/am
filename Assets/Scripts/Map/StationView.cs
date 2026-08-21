@@ -903,14 +903,18 @@ namespace Nebula.Map
                 lmr.sharedMaterial = new Material(Art.Lit(new Color(0.2f, 0.05f, 0.05f), 0f, 0.5f, 1.5f));
                 lmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 led.transform.localScale = Vector3.one * 0.28f;
-                led.transform.localPosition = new Vector3(0f, 0f, 0.6f);
+                // лампочка сидит под объективом сбоку, а не на его оси
+                led.transform.localPosition = new Vector3(0.24f, -0.2f, 0.44f);
 
                 var camGo = Child("Render", go.transform);
-                camGo.transform.localPosition = Vector3.zero;
+                // Объектив вынесен вперёд корпуса и лампочки. Раньше камера стояла в
+                // нуле, а красный светодиод — в 0.6 по Z прямо перед ней, поэтому в
+                // центре каждой картинки с камер висела большая красная точка.
+                camGo.transform.localPosition = new Vector3(0f, 0f, 1.05f);
                 camGo.transform.localRotation = Quaternion.identity;
                 var cam = camGo.AddComponent<Camera>();
                 cam.fieldOfView = 62f;
-                cam.nearClipPlane = 0.3f;
+                cam.nearClipPlane = 0.2f;
                 cam.farClipPlane = 60f;
                 cam.clearFlags = CameraClearFlags.SolidColor;
                 cam.backgroundColor = new Color(0.02f, 0.03f, 0.05f);

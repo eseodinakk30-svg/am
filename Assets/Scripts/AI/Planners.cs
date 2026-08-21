@@ -63,6 +63,8 @@ namespace Nebula.AI
         private readonly NpcBrain _brain;
         private float _lastCameraCheck = -99f;
         private float _lastAdminCheck = -99f;
+        private float _breakUntil = -99f;    // пока идёт, агент отдыхает от заданий
+        private float _nextBreak = -99f;     // когда захочется отдохнуть в следующий раз
 
         public CrewPlanner(NpcBrain brain) { _brain = brain; }
 
@@ -107,6 +109,20 @@ namespace Nebula.AI
             }
 
             // ---- do the next task ---------------------------------------
+            // Живой человек не бегает по заданиям без остановки: время от времени
+            // он просто идёт куда-то, стоит, смотрит по сторонам. Заводим перерывы,
+            // иначе задания всегда перебивают всё остальное и станция выглядит
+            // как конвейер.
+            if (now > _nextBreak)
+            {
+                _nextBreak = now + _brain.Rng.Range(38f, 85f);
+                // собранные почти не отвлекаются, общительные зависают надолго
+                float slack = Mathf.Clamp01(p.Sociability * 0.6f + (1f - p.Strategy) * 0.4f);
+                float length = Mathf.Lerp(3f, 14f, slack) * _brain.Rng.Range(0.6f, 1.4f);
+                _breakUntil = now + length;
+            }
+            bool onBreak = now < _breakUntil;
+
             var task = PickTask(self);
             if (task != null)
             {
@@ -116,6 +132,7 @@ namespace Nebula.AI
                 float score = 1.05f * Mathf.Clamp01(1f - dist / 300f) + 0.25f;
                 // an agent that feels safe focuses on tasks
                 score *= Mathf.Lerp(1.25f, 0.8f, _brain.Fear);
+                if (onBreak) score *= 0.35f;
                 if (score > bestScore)
                 {
                     bestScore = score;
@@ -185,13 +202,17 @@ namespace Nebula.AI
             }
 
             // ---- check the security cameras -------------------------------
-            if (now - _lastCameraCheck > 55f && p.Caution + p.Strategy > 0.95f)
+            if (now - _lastCameraCheck > 55f && p.Caution + p.Strategy > 0.8f)
             {
                 var security = StationLayout.Get("security");
                 if (security != null)
                 {
-                    float score = 0.62f * p.Strategy;
-                    if (_brain.Suspicion.Ranked().Count > 0 && suspicion > 0.5f) score += 0.2f;
+                    // Чем дольше агент не заглядывал на пост, тем сильнее тянет:
+                    // с прежним весом 0.62 задания перебивали камеры всегда, и на
+                    // посту наблюдения не бывало вообще никого.
+                    float hunger = Mathf.Clamp01((now - _lastCameraCheck - 55f) / 70f);
+                    float score = (0.85f + hunger * 0.75f) * Mathf.Lerp(0.7f, 1.25f, p.Strategy);
+                    if (_brain.Suspicion.Ranked().Count > 0 && suspicion > 0.5f) score += 0.35f;
                     if (score > bestScore)
                     {
                         bestScore = score;
@@ -211,12 +232,13 @@ namespace Nebula.AI
             }
 
             // ---- glance at the admin table --------------------------------
-            if (now - _lastAdminCheck > 70f && p.Intelligence > 0.6f)
+            if (now - _lastAdminCheck > 70f && p.Intelligence > 0.45f)
             {
                 var command = StationLayout.Get("command");
                 if (command != null)
                 {
-                    float score = 0.5f * p.Intelligence;
+                    float hunger = Mathf.Clamp01((now - _lastAdminCheck - 70f) / 80f);
+                    float score = (0.8f + hunger * 0.7f) * Mathf.Lerp(0.7f, 1.2f, p.Intelligence);
                     if (score > bestScore)
                     {
                         bestScore = score;
@@ -235,8 +257,8 @@ namespace Nebula.AI
                 }
             }
 
-            // ---- nothing better: patrol ----------------------------------
-            if (best.Kind == GoalKind.Idle)
+            // ---- nothing better, или просто перерыв: гуляем ---------------
+            if (best.Kind == GoalKind.Idle || (onBreak && bestScore < 0.62f))
             {
                 var rooms = StationLayout.RoomsOfDeck(self.Deck);
                 if (rooms.Count > 0)

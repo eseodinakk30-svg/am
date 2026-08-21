@@ -175,8 +175,11 @@ namespace Nebula.UI
             colors.fadeDuration = 0.07f;
             btn.colors = colors;
 
-            if (!string.IsNullOrEmpty(caption))
-                Label(img.transform, caption, Vector2.zero, size, fontSize, TextAnchor.MiddleCenter, Art.TextMain, FontStyle.Bold);
+            // Подпись создаём всегда, даже пустую: вызывающий код ищет её через
+            // GetComponentInChildren<Text>(), чтобы потом подставить текст, и на
+            // кнопке без подписи получал null. Пустой Text ничего не рисует.
+            Label(img.transform, caption ?? string.Empty, Vector2.zero, size, fontSize,
+                  TextAnchor.MiddleCenter, Art.TextMain, FontStyle.Bold);
 
             if (onClick != null)
             {
