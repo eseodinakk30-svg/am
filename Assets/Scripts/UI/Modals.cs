@@ -207,8 +207,14 @@ namespace Nebula.UI
     // ================================================================= cameras
     public class CamerasView : ModalBase
     {
+        private const int FeedsPerPage = 4;
+
         private readonly List<RawImage> _feeds = new List<RawImage>();
+        private readonly List<Text> _feedNames = new List<Text>();
+        private readonly List<SecurityCameraUnit> _live = new List<SecurityCameraUnit>();
         private MatchManager _match;
+        private Text _pageLabel;
+        private int _page;
 
         public static CamerasView Create(Transform parent, MatchManager match)
         {
@@ -223,30 +229,76 @@ namespace Nebula.UI
 
         private void BuildUi()
         {
-            BuildFrame(transform, "ПОСТ НАБЛЮДЕНИЯ", new Vector2(1180f, 700f), Close);
-            var cameras = StationView.Instance != null ? StationView.Instance.Cameras : null;
-            if (cameras == null) return;
+            BuildFrame(transform, "ПОСТ НАБЛЮДЕНИЯ", new Vector2(1180f, 760f), Close);
 
-            for (int i = 0; i < cameras.Count && i < 4; i++)
+            for (int i = 0; i < FeedsPerPage; i++)
             {
                 int col = i % 2, row = i / 2;
-                var pos = new Vector2(-270f + col * 540f, 130f - row * 280f);
+                var pos = new Vector2(-270f + col * 540f, 160f - row * 280f);
                 var frame = UIKit.Panel(Panel, "Feed" + i, pos, new Vector2(520f, 260f), new Color(0.02f, 0.03f, 0.05f, 1f), 10);
 
                 var rt = UIKit.Node(frame.transform, "Raw", Vector2.zero, new Vector2(510f, 250f));
                 var raw = rt.gameObject.AddComponent<RawImage>();
-                raw.texture = cameras[i].Target;
                 raw.raycastTarget = false;
                 _feeds.Add(raw);
 
-                UIKit.Label(frame.transform, StationLayout.NameOf(cameras[i].RoomId),
-                    new Vector2(0f, -108f), new Vector2(500f, 34f), 20, TextAnchor.MiddleCenter, Art.Accent);
+                _feedNames.Add(UIKit.Label(frame.transform, "", new Vector2(0f, -108f),
+                    new Vector2(500f, 34f), 20, TextAnchor.MiddleCenter, Art.Accent));
             }
+
+            // страницы: на станции камер больше, чем экранов на посту
+            UIKit.Button(Panel, "<", new Vector2(-250f, -300f), new Vector2(110f, 66f), () => Flip(-1),
+                new Color(0.16f, 0.22f, 0.30f, 0.95f), 30, 12);
+            _pageLabel = UIKit.Label(Panel, "", new Vector2(0f, -300f), new Vector2(320f, 40f), 22,
+                TextAnchor.MiddleCenter, Art.TextDim);
+            UIKit.Button(Panel, ">", new Vector2(250f, -300f), new Vector2(110f, 66f), () => Flip(1),
+                new Color(0.16f, 0.22f, 0.30f, 0.95f), 30, 12);
+        }
+
+        private static List<SecurityCameraUnit> AllCameras()
+        {
+            return StationView.Instance != null ? StationView.Instance.Cameras : null;
+        }
+
+        private int PageCount()
+        {
+            var all = AllCameras();
+            int count = all != null ? all.Count : 0;
+            return Mathf.Max(1, Mathf.CeilToInt(count / (float)FeedsPerPage));
+        }
+
+        private void Flip(int delta)
+        {
+            int pages = PageCount();
+            _page = ((_page + delta) % pages + pages) % pages;
+            ApplyPage();
+        }
+
+        /// <summary>Привязывает четыре экрана к камерам текущей страницы.</summary>
+        private void ApplyPage()
+        {
+            var all = AllCameras();
+            _live.Clear();
+
+            for (int i = 0; i < _feeds.Count; i++)
+            {
+                int index = _page * FeedsPerPage + i;
+                bool has = all != null && index < all.Count;
+                _feeds[i].enabled = has;
+                _feeds[i].texture = has ? all[index].Target : null;
+                _feedNames[i].text = has ? StationLayout.NameOf(all[index].RoomId) : "— нет сигнала —";
+                if (has) _live.Add(all[index]);
+            }
+
+            if (_pageLabel != null) _pageLabel.text = "КАМЕРЫ " + (_page + 1) + " / " + PageCount();
+            if (IsOpen) SetCameras(true);
         }
 
         public void Open()
         {
             gameObject.SetActive(true);
+            if (_page >= PageCount()) _page = 0;
+            ApplyPage();
             SetCameras(true);
         }
 
@@ -261,7 +313,9 @@ namespace Nebula.UI
             SecurityCameraUnit.AnyoneWatching = on;
             var view = StationView.Instance;
             if (view == null) return;
-            foreach (var cam in view.Cameras) cam.SetActive(on);
+            // питание дают только тем камерам, чью картинку панель действительно
+            // показывает: остальные рендерили бы в текстуру, которую никто не видит
+            foreach (var cam in view.Cameras) cam.SetActive(on && _live.Contains(cam));
         }
 
         private void Update()

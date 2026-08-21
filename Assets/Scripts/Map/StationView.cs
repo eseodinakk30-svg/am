@@ -322,8 +322,13 @@ namespace Nebula.Map
             props.AddFloor(c0.x, c0.z, c0.x + 0.25f, c1.z, y + 0.02f, borderColor);
             props.AddFloor(c1.x - 0.25f, c0.z, c1.x, c1.z, y + 0.02f, borderColor);
 
+            // ---- узнаваемая начинка комнаты ----
+            var glow = new MeshBuilder();
+            var glowColor = Color.Lerp(Art.Accent, area.Tint * 3f, 0.25f);
+            bool landmark = BuildLandmark(area, props, glow, propColor, y);
+
             // crates / machinery hugging the walls
-            int crates = rng.Range(3, 7);
+            int crates = landmark ? rng.Range(1, 4) : rng.Range(3, 7);
             for (int i = 0; i < crates; i++)
             {
                 bool alongX = rng.Chance(0.5f);
@@ -346,8 +351,8 @@ namespace Nebula.Map
             MeshObject("Props", holder, props.Build("Props_" + area.Id), Art.Lit(propColor, 0.1f, 0.35f));
 
             // ---- wall consoles with emissive screens ----
-            var screens = new MeshBuilder();
-            var screenColor = Color.Lerp(Art.Accent, area.Tint * 3f, 0.25f);
+            var screens = glow;
+            var screenColor = glowColor;
             int consoles = Mathf.Clamp(area.Rect.width / 9, 1, 3);
             for (int i = 0; i < consoles; i++)
             {
@@ -362,6 +367,359 @@ namespace Nebula.Map
             }
             var screenGo = MeshObject("Screens", holder, screens.Build("Screens_" + area.Id), Art.Lit(screenColor, 0f, 0.85f, 2.6f), false);
             rig.RegisterEmissive(screenGo.GetComponent<Renderer>(), screenColor);
+        }
+
+
+        /// <summary>
+        /// Точки комнаты, которые декор обязан обходить: дверные проёмы, венты,
+        /// лифты, консоли заданий и центр столовой с кнопкой сбора.
+        /// Возвращает (x, z, радиус) в мировых координатах.
+        /// </summary>
+        private List<Vector3> CollectKeepOut(AreaDef area)
+        {
+            var list = new List<Vector3>(16);
+
+            void Add(Vector3 world, float radius) => list.Add(new Vector3(world.x, world.z, radius));
+
+            foreach (var other in StationLayout.Areas)
+            {
+                if (other.Type != AreaType.Doorway) continue;
+                if (other.Deck != area.Deck) continue;
+                if (other.OwnerRoom != area.Key) continue;
+                Add(StationLayout.CellToWorld(area.Deck, other.CenterCell.x, other.CenterCell.y), 3.6f);
+            }
+
+            foreach (var vent in StationLayout.Vents)
+            {
+                if (vent.Deck != area.Deck || vent.RoomKey != area.Key) continue;
+                Add(StationLayout.CellToWorld(area.Deck, vent.Cell), 2.6f);
+            }
+
+            foreach (var lift in StationLayout.Elevators)
+            {
+                if (lift.DeckA == area.Deck && area.Rect.Contains(lift.CellA))
+                    Add(StationLayout.CellToWorld(area.Deck, lift.CellA), 3.2f);
+                if (lift.DeckB == area.Deck && area.Rect.Contains(lift.CellB))
+                    Add(StationLayout.CellToWorld(area.Deck, lift.CellB), 3.2f);
+            }
+
+            for (int slot = 0; slot < 8; slot++)
+                Add(Grid.StationPoint(area.Id, slot, out _), 2.1f);
+
+            // столовая: кнопка экстренного сбора и ноутбук старта в лобби
+            if (area.Key == "cafeteria")
+                Add(StationLayout.CellToWorld(area.Deck, area.CenterCell.x, area.CenterCell.y), 4.4f);
+
+            return list;
+        }
+
+        // ------------------------------------------------------------------ landmarks
+        /// <summary>
+        /// Крупная узнаваемая начинка отсека. Раньше все комнаты были одинаковыми
+        /// серыми коробками с ящиками вдоль стен — по картинке нельзя было понять,
+        /// где ты. Теперь у каждого отсека свой силуэт: реактор с колонной, склад
+        /// со стеллажами, оранжерея с грядками и так далее.
+        /// Геометрия строго декоративная: коллайдеров нет, сетка проходимости
+        /// не меняется, и NPC ходят ровно там же, где ходили.
+        /// </summary>
+        private bool BuildLandmark(AreaDef area, MeshBuilder solid, MeshBuilder glow, Color body, float y)
+        {
+            if (area.Type != AreaType.Room || string.IsNullOrEmpty(area.Key)) return false;
+
+            // нормированные координаты: 0..1 внутри прямоугольника комнаты
+            Vector3 P(float u, float v) => StationLayout.CellToWorld(
+                area.Deck,
+                area.Rect.xMin + area.Rect.width * u,
+                area.Rect.yMin + area.Rect.height * v);
+
+            float W = area.Rect.width * StationLayout.CellSize;
+            float H = area.Rect.height * StationLayout.CellSize;
+            float ceiling = y + StationLayout.WallHeight;
+            var dark = Color.Lerp(body, Color.black, 0.25f);
+
+            var keepOut = CollectKeepOut(area);
+
+            // Декорация не должна вырастать в дверном проёме, на венте, на консоли
+            // задания или на месте кнопки сбора — иначе персонаж проходит сквозь неё.
+            bool Free(Vector3 p, float radius)
+            {
+                for (int i = 0; i < keepOut.Count; i++)
+                {
+                    var k = keepOut[i];
+                    float dx = p.x - k.x, dz = p.z - k.y;
+                    float rr = radius + k.z;
+                    if (dx * dx + dz * dz < rr * rr) return false;
+                }
+                return true;
+            }
+
+            // — вспомогательные заготовки —
+            void Box(float u, float v, float sx, float sy, float sz, Color c)
+            {
+                var p = P(u, v);
+                if (!Free(p, Mathf.Max(sx, sz) * 0.5f)) return;
+                solid.AddBox(new Vector3(p.x, y + sy * 0.5f, p.z), new Vector3(sx, sy, sz), c);
+            }
+            void Screen(float u, float v, float sx, float sy, float sz)
+            {
+                var p = P(u, v);
+                if (!Free(p, Mathf.Max(sx, sz) * 0.5f)) return;
+                glow.AddBox(new Vector3(p.x, y + sy * 0.5f + 0.9f, p.z), new Vector3(sx, sy, sz), Color.white);
+            }
+            void Pillar(float u, float v, float r, float h, Color c)
+            {
+                var p = P(u, v);
+                if (!Free(p, r)) return;
+                solid.AddCylinder(new Vector3(p.x, y, p.z), r, h, 10, c);
+            }
+            void Lamp(float u, float v, float r, float h)
+            {
+                var p = P(u, v);
+                if (!Free(p, r)) return;
+                glow.AddCylinder(new Vector3(p.x, y + 0.05f, p.z), r, h, 10, Color.white);
+            }
+            void Pipe(float u0, float v0, float h0, float u1, float v1, float h1, float t, Color c)
+            {
+                var a = P(u0, v0); var b = P(u1, v1);
+                // трубу ниже роста тоже нельзя ставить в проходе, а под потолком — можно
+                float low = Mathf.Min(h0, h1);
+                if (low < 2.2f && (!Free(a, t) || !Free(b, t))) return;
+                solid.AddBeam(new Vector3(a.x, y + h0, a.z), new Vector3(b.x, y + h1, b.z), t, c);
+            }
+            // ряд одинаковых блоков вдоль оси X
+            void RowX(int n, float v, float sx, float sy, float sz, Color c)
+            {
+                for (int i = 0; i < n; i++) Box((i + 0.5f) / n, v, sx, sy, sz, c);
+            }
+
+            switch (area.Key)
+            {
+                case "reactor":
+                    // колонна активной зоны с кольцами и стяжками к потолку
+                    Pillar(0.5f, 0.5f, 2.4f, 2.6f, dark);
+                    Lamp(0.5f, 0.5f, 1.7f, 3.1f);
+                    for (int i = 0; i < 6; i++)
+                    {
+                        float a = i / 6f * Mathf.PI * 2f;
+                        float u = 0.5f + Mathf.Cos(a) * 0.32f, v = 0.5f + Mathf.Sin(a) * 0.32f;
+                        Pillar(u, v, 0.55f, 2.2f, body);
+                        Pipe(u, v, 2.2f, 0.5f, 0.5f, ceiling - y - 0.4f, 0.28f, dark);
+                    }
+                    return true;
+
+                case "engines":
+                    // две тяговые гондолы с соплами
+                    for (int i = 0; i < 2; i++)
+                    {
+                        float v = i == 0 ? 0.26f : 0.74f;
+                        Box(0.42f, v, W * 0.46f, 2.6f, 3.4f, body);
+                        Box(0.72f, v, W * 0.12f, 1.9f, 2.2f, dark);
+                        Screen(0.18f, v, 1.4f, 1.1f, 0.3f);
+                        Lamp(0.80f, v, 0.9f, 1.6f);
+                    }
+                    Pipe(0.05f, 0.26f, 2.6f, 0.05f, 0.74f, 2.6f, 0.35f, dark);
+                    return true;
+
+                case "medbay":
+                    // три койки и сканирующее кольцо
+                    for (int i = 0; i < 3; i++)
+                    {
+                        float v = 0.22f + i * 0.28f;
+                        Box(0.30f, v, 2.6f, 0.8f, 1.3f, body);
+                        Box(0.30f, v, 2.7f, 0.12f, 1.5f, dark);
+                    }
+                    Pillar(0.74f, 0.5f, 1.7f, 0.25f, dark);
+                    for (int i = 0; i < 3; i++)
+                    {
+                        float a = i / 3f * Mathf.PI * 2f;
+                        Pipe(0.74f + Mathf.Cos(a) * 0.08f, 0.5f + Mathf.Sin(a) * 0.12f, 0.25f,
+                             0.74f, 0.5f, 2.8f, 0.22f, body);
+                    }
+                    Lamp(0.74f, 0.5f, 1.4f, 0.16f);
+                    return true;
+
+                case "lab":
+                case "archive":
+                    // ряды столов / стеллажей с подсветкой полок
+                    for (int i = 0; i < 3; i++)
+                    {
+                        float v = 0.22f + i * 0.28f;
+                        Box(0.5f, v, W * 0.62f, 1.0f, 1.2f, body);
+                        Screen(0.5f, v, W * 0.58f, 0.14f, 0.9f);
+                    }
+                    return true;
+
+                case "hydro":
+                case "filtration":
+                    // грядки и лампы досветки
+                    for (int i = 0; i < 3; i++)
+                    for (int j = 0; j < 2; j++)
+                    {
+                        float u = 0.26f + i * 0.24f, v = 0.3f + j * 0.4f;
+                        Box(u, v, 3.4f, 0.9f, 3.0f, body);
+                        Pillar(u, v, 0.7f, 1.8f, new Color(0.24f, 0.45f, 0.22f));
+                        Lamp(u, v, 0.5f, 0.12f);
+                    }
+                    return true;
+
+                case "comms":
+                case "relay":
+                    // тарелка на поворотном основании
+                    Pillar(0.5f, 0.45f, 1.5f, 1.1f, dark);
+                    Pipe(0.5f, 0.45f, 1.1f, 0.5f, 0.62f, 2.6f, 0.5f, body);
+                    var dish = P(0.5f, 0.62f);
+                    glow.AddCylinder(new Vector3(dish.x, y + 2.6f, dish.z), 2.2f, 0.22f, 12, Color.white);
+                    RowX(3, 0.12f, 1.6f, 1.4f, 1.0f, body);
+                    return true;
+
+                case "command":
+                    // дугой стоящие пульты и большой экран у стены
+                    for (int i = 0; i < 5; i++)
+                    {
+                        float t = (i + 0.5f) / 5f;
+                        float u = 0.22f + t * 0.56f;
+                        float v = 0.42f - Mathf.Sin(t * Mathf.PI) * 0.14f;
+                        Box(u, v, 2.2f, 1.1f, 1.4f, body);
+                        Screen(u, v, 1.9f, 0.9f, 0.25f);
+                    }
+                    Screen(0.5f, 0.9f, W * 0.5f, 2.0f, 0.3f);
+                    return true;
+
+                case "security":
+                    // стена мониторов и кресло оператора
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float u = 0.2f + i * 0.2f;
+                        Screen(u, 0.86f, 2.0f, 1.4f, 0.25f);
+                    }
+                    Box(0.5f, 0.68f, W * 0.55f, 1.0f, 1.2f, body);
+                    Box(0.5f, 0.5f, 1.1f, 1.3f, 1.1f, dark);
+                    return true;
+
+                case "cafeteria":
+                    // столы кольцом вокруг кнопки экстренного сбора
+                    for (int i = 0; i < 6; i++)
+                    {
+                        float a = i / 6f * Mathf.PI * 2f + 0.4f;
+                        float u = 0.5f + Mathf.Cos(a) * 0.30f;
+                        float v = 0.5f + Mathf.Sin(a) * 0.30f;
+                        Pillar(u, v, 1.5f, 0.95f, body);
+                        for (int k = 0; k < 3; k++)
+                        {
+                            float b = k / 3f * Mathf.PI * 2f;
+                            Pillar(u + Mathf.Cos(b) * 0.075f, v + Mathf.Sin(b) * 0.105f, 0.42f, 0.55f, dark);
+                        }
+                    }
+                    return true;
+
+                case "quarters":
+                    // двухъярусные койки вдоль обеих стен
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float u = 0.16f + i * 0.23f;
+                        Box(u, 0.14f, 2.0f, 0.75f, 3.0f, body);
+                        Box(u, 0.14f, 1.9f, 0.30f, 2.9f, dark);
+                        Box(u, 0.86f, 2.0f, 0.75f, 3.0f, body);
+                        Box(u, 0.86f, 1.9f, 0.30f, 2.9f, dark);
+                    }
+                    return true;
+
+                case "observation":
+                    // телескоп у панорамного окна
+                    Pillar(0.5f, 0.36f, 1.3f, 0.9f, dark);
+                    Pipe(0.5f, 0.36f, 0.9f, 0.5f, 0.72f, 3.0f, 0.85f, body);
+                    Screen(0.5f, 0.94f, W * 0.6f, 1.8f, 0.2f);
+                    RowX(2, 0.16f, 2.4f, 0.8f, 1.2f, body);
+                    return true;
+
+                case "electrical":
+                case "battery":
+                    // шкафы автоматики и висящие жгуты
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float u = 0.16f + i * 0.23f;
+                        Box(u, 0.8f, 2.0f, 2.4f, 1.1f, body);
+                        Screen(u, 0.8f, 1.6f, 1.0f, 0.2f);
+                        Pipe(u, 0.8f, 2.4f, u, 0.55f, 1.9f, 0.18f, dark);
+                    }
+                    RowX(3, 0.24f, 1.8f, 1.2f, 1.6f, dark);
+                    return true;
+
+                case "storage":
+                case "cargo":
+                    // стеллажи в два ряда и штабель контейнеров
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float u = 0.16f + i * 0.23f;
+                        Box(u, 0.24f, 2.2f, 2.6f, 1.4f, body);
+                        Box(u, 0.76f, 2.2f, 2.6f, 1.4f, body);
+                    }
+                    Box(0.5f, 0.5f, 3.0f, 1.6f, 3.0f, dark);
+                    Box(0.5f, 0.5f, 2.2f, 2.6f, 2.2f, body);
+                    return true;
+
+                case "airlock":
+                case "dronebay":
+                    // шлюзовые ворота и разметка площадки
+                    Screen(0.5f, 0.95f, W * 0.42f, 2.4f, 0.25f);
+                    Pillar(0.28f, 0.4f, 1.6f, 0.2f, dark);
+                    Pillar(0.72f, 0.4f, 1.6f, 0.2f, dark);
+                    Box(0.28f, 0.4f, 1.6f, 0.7f, 2.2f, body);
+                    Box(0.72f, 0.4f, 1.6f, 0.7f, 2.2f, body);
+                    Pipe(0.1f, 0.95f, 2.6f, 0.9f, 0.95f, 2.6f, 0.4f, dark);
+                    return true;
+
+                case "lifesupport":
+                case "water":
+                case "coolant":
+                    // баллоны и обвязка труб
+                    for (int i = 0; i < 3; i++)
+                    {
+                        float u = 0.24f + i * 0.26f;
+                        Pillar(u, 0.62f, 1.5f, 2.7f, body);
+                        Lamp(u, 0.62f, 1.1f, 0.14f);
+                        Pipe(u, 0.62f, 2.7f, u, 0.24f, 1.4f, 0.3f, dark);
+                    }
+                    Pipe(0.14f, 0.24f, 1.4f, 0.86f, 0.24f, 1.4f, 0.34f, dark);
+                    return true;
+
+                case "servers":
+                    // ряды стоек с моргающими панелями
+                    for (int i = 0; i < 5; i++)
+                    {
+                        float u = 0.14f + i * 0.18f;
+                        Box(u, 0.35f, 1.5f, 2.5f, H * 0.34f, dark);
+                        Screen(u, 0.35f, 1.1f, 1.6f, 0.2f);
+                        Box(u, 0.72f, 1.5f, 2.5f, H * 0.24f, dark);
+                    }
+                    return true;
+
+                case "maintenance":
+                case "reprocessing":
+                    // магистральные трубы под потолком и вентили
+                    for (int i = 0; i < 3; i++)
+                    {
+                        float v = 0.24f + i * 0.26f;
+                        Pipe(0.06f, v, 2.6f, 0.94f, v, 2.6f, 0.45f, dark);
+                        Pipe(0.3f + i * 0.2f, v, 2.6f, 0.3f + i * 0.2f, v, 1.1f, 0.3f, body);
+                        Box(0.3f + i * 0.2f, v, 1.6f, 1.1f, 1.6f, body);
+                    }
+                    return true;
+
+                case "armory":
+                case "scrap":
+                    // оружейные шкафы / стойки с разобранным железом
+                    for (int i = 0; i < 5; i++)
+                    {
+                        float u = (i + 0.5f) / 5f;
+                        Box(u, 0.8f, 1.7f, 2.3f, 1.0f, body);
+                        Screen(u, 0.8f, 1.2f, 0.5f, 0.2f);
+                    }
+                    Box(0.5f, 0.3f, W * 0.4f, 1.0f, 1.6f, dark);
+                    return true;
+            }
+
+            return false;
         }
 
         // ------------------------------------------------------------------ doors
@@ -569,9 +927,12 @@ namespace Nebula.Map
         private void BuildEmergencyButton(Vector3 centre)
         {
             var holder = Child("EmergencyButton", transform).transform;
-            holder.position = centre;
+            // ровно в центре столовой в лобби стоит ноутбук старта — ставим кнопку
+            // рядом на том же столе, иначе две модели прорастают друг в друга
+            holder.position = centre + new Vector3(0f, 0f, 1.9f);
 
             var pedestal = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            Destroy(pedestal.GetComponent<Collider>());
             pedestal.name = "Pedestal";
             pedestal.transform.SetParent(holder, false);
             pedestal.transform.localPosition = new Vector3(0f, 0.5f, 0f);

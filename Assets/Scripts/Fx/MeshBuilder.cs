@@ -82,6 +82,65 @@ namespace Nebula.Fx
             AddQuad(new Vector3(x1, y0, z0), new Vector3(x1, y0, z1), new Vector3(x1, y1, z1), new Vector3(x1, y1, z0), Vector3.right, color, uvz);
         }
 
+        /// <summary>Тонкая наклонная панель — трубы, опоры, рычаги.</summary>
+        public void AddBeam(Vector3 from, Vector3 to, float thickness, Color color)
+        {
+            var dir = to - from;
+            float len = dir.magnitude;
+            if (len < 0.001f) return;
+            dir /= len;
+            var up = Mathf.Abs(dir.y) > 0.95f ? Vector3.forward : Vector3.up;
+            var right = Vector3.Cross(up, dir).normalized * (thickness * 0.5f);
+            up = Vector3.Cross(dir, right).normalized * (thickness * 0.5f);
+
+            for (int f = 0; f < 4; f++)
+            {
+                Vector3 o0, o1;
+                switch (f)
+                {
+                    case 0: o0 = -right - up; o1 = right - up; break;
+                    case 1: o0 = right - up; o1 = right + up; break;
+                    case 2: o0 = right + up; o1 = -right + up; break;
+                    default: o0 = -right + up; o1 = -right - up; break;
+                }
+                // порядок o1->o0 даёт нормаль наружу: cross(dir, o0-o1)
+                var n = Vector3.Cross(dir, o0 - o1).normalized;
+                AddQuad(from + o1, from + o0, to + o0, to + o1, n, color, new Vector2(thickness, len * 0.4f));
+            }
+        }
+
+        /// <summary>Призма с N гранями — приближение цилиндра без лишних вершин.</summary>
+        public void AddCylinder(Vector3 baseCenter, float radius, float height, int sides, Color color, bool cap = true)
+        {
+            sides = Mathf.Clamp(sides, 3, 24);
+            var top = baseCenter + Vector3.up * height;
+            for (int i = 0; i < sides; i++)
+            {
+                float a0 = i / (float)sides * Mathf.PI * 2f;
+                float a1 = (i + 1) / (float)sides * Mathf.PI * 2f;
+                var d0 = new Vector3(Mathf.Cos(a0), 0f, Mathf.Sin(a0)) * radius;
+                var d1 = new Vector3(Mathf.Cos(a1), 0f, Mathf.Sin(a1)) * radius;
+                var n = ((d0 + d1) * 0.5f).normalized;
+
+                AddQuad(baseCenter + d0, baseCenter + d1, top + d1, top + d0, n, color,
+                    new Vector2(radius, height * 0.4f));
+
+                if (!cap) continue;
+                AddTriangle(top, top + d0, top + d1, Vector3.up, color);
+            }
+        }
+
+        public void AddTriangle(Vector3 a, Vector3 b, Vector3 c, Vector3 normal, Color color)
+        {
+            int i = _verts.Count;
+            _verts.Add(a); _verts.Add(b); _verts.Add(c);
+            for (int k = 0; k < 3; k++) { _normals.Add(normal); _colors.Add(color); }
+            _uvs.Add(new Vector2(0.5f, 1f));
+            _uvs.Add(new Vector2(0f, 0f));
+            _uvs.Add(new Vector2(1f, 0f));
+            _tris.Add(i); _tris.Add(i + 2); _tris.Add(i + 1);
+        }
+
         public Mesh Build(string name, bool markNoLongerReadable = true)
         {
             var mesh = new Mesh { name = name };

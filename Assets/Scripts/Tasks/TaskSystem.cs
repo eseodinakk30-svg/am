@@ -40,6 +40,7 @@ namespace Nebula.Tasks
         private readonly Dictionary<long, TaskStation> _stations = new Dictionary<long, TaskStation>();
         private Transform _root;
         private float _crewProgress;
+        private float _shownProgress = -1f;
 
         public float CrewProgress => _crewProgress;
         public int TotalCrewStages { get; private set; }
@@ -255,8 +256,18 @@ namespace Nebula.Tasks
             if (!Mathf.Approximately(value, _crewProgress))
             {
                 _crewProgress = value;
-                GameEvents.RaiseTaskProgressChanged(value);
+                // правило «шкала обновляется только на собраниях»: считаем прогресс
+                // как обычно (от него зависит победа), но экипажу его не показываем
+                if (GameSettings.Match == null || GameSettings.Match.TaskBarUpdatesAlways) PublishProgress();
             }
+        }
+
+        /// <summary>Показать накопленный прогресс — вызывается при созыве собрания.</summary>
+        public void PublishProgress()
+        {
+            if (Mathf.Approximately(_shownProgress, _crewProgress)) return;
+            _shownProgress = _crewProgress;
+            GameEvents.RaiseTaskProgressChanged(_crewProgress);
         }
 
         public bool AllCrewTasksDone() => TotalCrewStages > 0 && CompletedCrewStages >= TotalCrewStages;

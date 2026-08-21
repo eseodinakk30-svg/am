@@ -148,7 +148,10 @@ namespace Nebula.Gameplay
                 if (p.Id == local.Id) { actor.SetVisible(true); continue; }
 
                 bool visible;
-                if (ghostView) visible = true;
+                // правило «призраки видят призраков»: если оно выключено, мёртвый
+                // видит только живых и бродит по станции в одиночестве
+                if (ghostView && p.IsGhost) visible = GameSettings.Match == null || GameSettings.Match.GhostsSeeGhosts;
+                else if (ghostView) visible = true;
                 else if (p.InVent) visible = false;
                 else if (p.IsGhost) visible = false;                     // living players never see ghosts
                 else visible = _match.CanSeePlayer(local, p);

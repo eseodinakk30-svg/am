@@ -719,6 +719,13 @@ namespace Nebula.Gameplay
             Station?.SetAllLights(1f);
             _visionFactor = 1f;
 
+            // облик спадает при созыве: иначе за столом сидели бы два одинаковых
+            // персонажа, и обсуждать было бы нечего
+            foreach (var p in Players) if (p.DisguisedAs >= 0) EndShapeshift(p);
+
+            // правило «шкала заданий обновляется только на собраниях»
+            Tasks?.PublishProgress();
+
             // gather everybody around the table
             var spawns = Station != null ? Station.SpawnPoints : null;
             for (int i = 0; i < Players.Count; i++)

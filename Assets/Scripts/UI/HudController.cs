@@ -410,18 +410,45 @@ namespace Nebula.UI
             // предателю задания не нужны — у него свои дела
             if (local.Role == Role.Infiltrator) return false;
 
+            // при потерянной связи список заданий скрыт — стрелка не должна его выдавать
+            if (sab != null && sab.CommsDown) return false;
+
+            var tasks = _match.Tasks;
+            if (tasks == null) return false;
+
             float nearest = float.MaxValue;
             bool found = false;
+            bool otherDeck = false;
             foreach (var task in local.Tasks)
             {
                 if (task == null || task.IsComplete) continue;
                 var area = StationLayout.Get(task.CurrentRoomId);
-                if (area == null || area.Deck != local.Deck) continue;
-                var pos = StationLayout.AreaCenterWorld(area.Id);
+                if (area == null) continue;
+                if (area.Deck != local.Deck) { otherDeck = true; continue; }
+                // ведём к самой консоли, а не к центру комнаты: станции стоят по
+                // периметру, и центр может быть в полутора десятках метров от них
+                var pos = tasks.NextStationFor(task);
                 float dist = (pos - local.Position).sqrMagnitude;
                 if (dist < nearest) { nearest = dist; target = pos; found = true; }
             }
-            return found;
+            if (found) return true;
+
+            // все оставшиеся задания на другой палубе — ведём к ближайшему лифту,
+            // иначе стрелка просто пропадает и игрок не понимает, куда идти
+            if (otherDeck) return TryFindElevator(local, out target);
+            return false;
+        }
+
+        /// <summary>Ближайший лифт на палубе игрока — переход между палубами.</summary>
+        private bool TryFindElevator(PlayerState local, out Vector3 target)
+        {
+            target = Vector3.zero;
+            var view = StationView.Instance;
+            if (view == null) return false;
+            var pad = view.NearestElevator(local.Position, local.Deck, 500f);
+            if (pad == null) return false;
+            target = pad.transform.position;
+            return true;
         }
 
         private void UpdateRoleButton(PlayerState local, bool alive)
