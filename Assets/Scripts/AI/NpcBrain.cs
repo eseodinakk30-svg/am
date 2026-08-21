@@ -693,7 +693,9 @@ namespace Nebula.AI
 
         public void OnVentWitnessed(PlayerState player)
         {
-            Suspicion.AddTrust(player.Id, -2.2f);
+            if (player == null) return;
+            bool engineersInPlay = Match != null && Match.Settings != null && Match.Settings.EngineerCount > 0;
+            Suspicion.AddTrust(player.Id, engineersInPlay ? -0.9f : -2.2f);
         }
 
         public void OnSabotageHeard(SabotageType type, int roomId)
@@ -760,8 +762,11 @@ namespace Nebula.AI
                 act.Intent = SpeechIntent.VentCall;
                 act.TargetId = ventSuspect;
                 act.RoomId = ventRoom;
-                act.Priority = 3.4f;
-                act.Confidence = 0.98f;
+                // с инженерами в правилах вентиляция перестаёт быть уликой
+                // железной: агент всё равно поднимет тему, но не как приговор
+                bool engineersInPlay = Match != null && Match.Settings != null && Match.Settings.EngineerCount > 0;
+                act.Priority = engineersInPlay ? 2.6f : 3.4f;
+                act.Confidence = engineersInPlay ? 0.72f : 0.98f;
                 return act;
             }
 

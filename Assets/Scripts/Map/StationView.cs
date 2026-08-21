@@ -438,45 +438,54 @@ namespace Nebula.Map
             var dark = Color.Lerp(body, Color.black, 0.25f);
 
             var keepOut = CollectKeepOut(area);
+            int placed = 0;
 
             // Декорация не должна вырастать в дверном проёме, на венте, на консоли
             // задания или на месте кнопки сбора — иначе персонаж проходит сквозь неё.
-            bool Free(Vector3 p, float radius)
+            // Меряем по настоящему следу предмета, а не по описанной окружности:
+            // длинный стеллаж во всю комнату иначе отвергался бы любой дверью.
+            bool FreeBox(Vector3 p, float sx, float sz)
             {
+                float hx = sx * 0.5f, hz = sz * 0.5f;
                 for (int i = 0; i < keepOut.Count; i++)
                 {
                     var k = keepOut[i];
-                    float dx = p.x - k.x, dz = p.z - k.y;
-                    float rr = radius + k.z;
-                    if (dx * dx + dz * dz < rr * rr) return false;
+                    float dx = Mathf.Max(0f, Mathf.Abs(p.x - k.x) - hx);
+                    float dz = Mathf.Max(0f, Mathf.Abs(p.z - k.y) - hz);
+                    if (dx * dx + dz * dz < k.z * k.z) return false;
                 }
                 return true;
             }
+            bool Free(Vector3 p, float radius) => FreeBox(p, radius * 2f, radius * 2f);
 
             // — вспомогательные заготовки —
             void Box(float u, float v, float sx, float sy, float sz, Color c)
             {
                 var p = P(u, v);
-                if (!Free(p, Mathf.Max(sx, sz) * 0.5f)) return;
+                if (!FreeBox(p, sx, sz)) return;
                 solid.AddBox(new Vector3(p.x, y + sy * 0.5f, p.z), new Vector3(sx, sy, sz), c);
+                placed++;
             }
             void Screen(float u, float v, float sx, float sy, float sz)
             {
                 var p = P(u, v);
-                if (!Free(p, Mathf.Max(sx, sz) * 0.5f)) return;
+                if (!FreeBox(p, sx, sz)) return;
                 glow.AddBox(new Vector3(p.x, y + sy * 0.5f + 0.9f, p.z), new Vector3(sx, sy, sz), Color.white);
+                placed++;
             }
             void Pillar(float u, float v, float r, float h, Color c)
             {
                 var p = P(u, v);
                 if (!Free(p, r)) return;
                 solid.AddCylinder(new Vector3(p.x, y, p.z), r, h, 10, c);
+                placed++;
             }
             void Lamp(float u, float v, float r, float h)
             {
                 var p = P(u, v);
                 if (!Free(p, r)) return;
                 glow.AddCylinder(new Vector3(p.x, y + 0.05f, p.z), r, h, 10, Color.white);
+                placed++;
             }
             void Pipe(float u0, float v0, float h0, float u1, float v1, float h1, float t, Color c)
             {
@@ -485,6 +494,7 @@ namespace Nebula.Map
                 float low = Mathf.Min(h0, h1);
                 if (low < 2.2f && (!Free(a, t) || !Free(b, t))) return;
                 solid.AddBeam(new Vector3(a.x, y + h0, a.z), new Vector3(b.x, y + h1, b.z), t, c);
+                placed++;
             }
             // ряд одинаковых блоков вдоль оси X
             void RowX(int n, float v, float sx, float sy, float sz, Color c)
@@ -505,7 +515,7 @@ namespace Nebula.Map
                         Pillar(u, v, 0.55f, 2.2f, body);
                         Pipe(u, v, 2.2f, 0.5f, 0.5f, ceiling - y - 0.4f, 0.28f, dark);
                     }
-                    return true;
+                    break;
 
                 case "engines":
                     // две тяговые гондолы с соплами
@@ -518,7 +528,7 @@ namespace Nebula.Map
                         Lamp(0.80f, v, 0.9f, 1.6f);
                     }
                     Pipe(0.05f, 0.26f, 2.6f, 0.05f, 0.74f, 2.6f, 0.35f, dark);
-                    return true;
+                    break;
 
                 case "medbay":
                     // три койки и сканирующее кольцо
@@ -536,7 +546,7 @@ namespace Nebula.Map
                              0.74f, 0.5f, 2.8f, 0.22f, body);
                     }
                     Lamp(0.74f, 0.5f, 1.4f, 0.16f);
-                    return true;
+                    break;
 
                 case "lab":
                 case "archive":
@@ -547,7 +557,7 @@ namespace Nebula.Map
                         Box(0.5f, v, W * 0.62f, 1.0f, 1.2f, body);
                         Screen(0.5f, v, W * 0.58f, 0.14f, 0.9f);
                     }
-                    return true;
+                    break;
 
                 case "hydro":
                 case "filtration":
@@ -560,7 +570,7 @@ namespace Nebula.Map
                         Pillar(u, v, 0.7f, 1.8f, new Color(0.24f, 0.45f, 0.22f));
                         Lamp(u, v, 0.5f, 0.12f);
                     }
-                    return true;
+                    break;
 
                 case "comms":
                 case "relay":
@@ -570,7 +580,7 @@ namespace Nebula.Map
                     var dish = P(0.5f, 0.62f);
                     glow.AddCylinder(new Vector3(dish.x, y + 2.6f, dish.z), 2.2f, 0.22f, 12, Color.white);
                     RowX(3, 0.12f, 1.6f, 1.4f, 1.0f, body);
-                    return true;
+                    break;
 
                 case "command":
                     // дугой стоящие пульты и большой экран у стены
@@ -583,7 +593,7 @@ namespace Nebula.Map
                         Screen(u, v, 1.9f, 0.9f, 0.25f);
                     }
                     Screen(0.5f, 0.9f, W * 0.5f, 2.0f, 0.3f);
-                    return true;
+                    break;
 
                 case "security":
                     // стена мониторов и кресло оператора
@@ -594,7 +604,7 @@ namespace Nebula.Map
                     }
                     Box(0.5f, 0.68f, W * 0.55f, 1.0f, 1.2f, body);
                     Box(0.5f, 0.5f, 1.1f, 1.3f, 1.1f, dark);
-                    return true;
+                    break;
 
                 case "cafeteria":
                     // столы кольцом вокруг кнопки экстренного сбора
@@ -610,7 +620,7 @@ namespace Nebula.Map
                             Pillar(u + Mathf.Cos(b) * 0.075f, v + Mathf.Sin(b) * 0.105f, 0.42f, 0.55f, dark);
                         }
                     }
-                    return true;
+                    break;
 
                 case "quarters":
                     // двухъярусные койки вдоль обеих стен
@@ -622,7 +632,7 @@ namespace Nebula.Map
                         Box(u, 0.86f, 2.0f, 0.75f, 3.0f, body);
                         Box(u, 0.86f, 1.9f, 0.30f, 2.9f, dark);
                     }
-                    return true;
+                    break;
 
                 case "observation":
                     // телескоп у панорамного окна
@@ -630,7 +640,7 @@ namespace Nebula.Map
                     Pipe(0.5f, 0.36f, 0.9f, 0.5f, 0.72f, 3.0f, 0.85f, body);
                     Screen(0.5f, 0.94f, W * 0.6f, 1.8f, 0.2f);
                     RowX(2, 0.16f, 2.4f, 0.8f, 1.2f, body);
-                    return true;
+                    break;
 
                 case "electrical":
                 case "battery":
@@ -643,7 +653,7 @@ namespace Nebula.Map
                         Pipe(u, 0.8f, 2.4f, u, 0.55f, 1.9f, 0.18f, dark);
                     }
                     RowX(3, 0.24f, 1.8f, 1.2f, 1.6f, dark);
-                    return true;
+                    break;
 
                 case "storage":
                 case "cargo":
@@ -656,7 +666,7 @@ namespace Nebula.Map
                     }
                     Box(0.5f, 0.5f, 3.0f, 1.6f, 3.0f, dark);
                     Box(0.5f, 0.5f, 2.2f, 2.6f, 2.2f, body);
-                    return true;
+                    break;
 
                 case "airlock":
                 case "dronebay":
@@ -667,7 +677,7 @@ namespace Nebula.Map
                     Box(0.28f, 0.4f, 1.6f, 0.7f, 2.2f, body);
                     Box(0.72f, 0.4f, 1.6f, 0.7f, 2.2f, body);
                     Pipe(0.1f, 0.95f, 2.6f, 0.9f, 0.95f, 2.6f, 0.4f, dark);
-                    return true;
+                    break;
 
                 case "lifesupport":
                 case "water":
@@ -681,7 +691,7 @@ namespace Nebula.Map
                         Pipe(u, 0.62f, 2.7f, u, 0.24f, 1.4f, 0.3f, dark);
                     }
                     Pipe(0.14f, 0.24f, 1.4f, 0.86f, 0.24f, 1.4f, 0.34f, dark);
-                    return true;
+                    break;
 
                 case "servers":
                     // ряды стоек с моргающими панелями
@@ -692,7 +702,7 @@ namespace Nebula.Map
                         Screen(u, 0.35f, 1.1f, 1.6f, 0.2f);
                         Box(u, 0.72f, 1.5f, 2.5f, H * 0.24f, dark);
                     }
-                    return true;
+                    break;
 
                 case "maintenance":
                 case "reprocessing":
@@ -704,7 +714,7 @@ namespace Nebula.Map
                         Pipe(0.3f + i * 0.2f, v, 2.6f, 0.3f + i * 0.2f, v, 1.1f, 0.3f, body);
                         Box(0.3f + i * 0.2f, v, 1.6f, 1.1f, 1.6f, body);
                     }
-                    return true;
+                    break;
 
                 case "armory":
                 case "scrap":
@@ -716,10 +726,12 @@ namespace Nebula.Map
                         Screen(u, 0.8f, 1.2f, 0.5f, 0.2f);
                     }
                     Box(0.5f, 0.3f, W * 0.4f, 1.0f, 1.6f, dark);
-                    return true;
+                    break;
             }
 
-            return false;
+            // если вся начинка попала в зону обхода, комната остаётся пустой —
+            // тогда честнее сказать «декора нет» и вернуть обычные ящики
+            return placed >= 3;
         }
 
         // ------------------------------------------------------------------ doors

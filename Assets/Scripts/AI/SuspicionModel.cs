@@ -119,6 +119,12 @@ namespace Nebula.AI
 
             var records = memory.Records;
 
+            // Правила лобби — общедоступная информация, а не подсмотренная роль:
+            // если в матче есть инженеры, то нырок в вентиляцию сам по себе уже
+            // не приговор. Без этой поправки инженера выкидывали в первое же
+            // собрание за использование собственного умения.
+            float ventWeight = match.Settings != null && match.Settings.EngineerCount > 0 ? 2.1f : 5.2f;
+
             // --- crime scenes: where and roughly when bodies turned up -------
             var crimeScenes = new List<MemoryRecord>();
             for (int i = 0; i < records.Count; i++)
@@ -136,7 +142,7 @@ namespace Nebula.AI
                         break;
 
                     case MemoryKind.VentWitnessed:
-                        Bump(scratch, r.SubjectId, 5.2f * r.Confidence, EvidenceKind.SawVent, r);
+                        Bump(scratch, r.SubjectId, ventWeight * r.Confidence, EvidenceKind.SawVent, r);
                         break;
 
                     case MemoryKind.VisualTaskProof:

@@ -39,10 +39,12 @@ namespace Nebula.Tasks
     {
         private readonly Dictionary<long, TaskStation> _stations = new Dictionary<long, TaskStation>();
         private Transform _root;
-        private float _crewProgress;
-        private float _shownProgress = -1f;
+        private float _crewProgress;    // истинный прогресс — от него зависит победа
+        private float _shownProgress;   // то, что видят игроки на шкале
+        private MatchSettings _settings;
 
-        public float CrewProgress => _crewProgress;
+        /// <summary>Значение шкалы, которое показывают всем: и HUD, и ИИ, и клиентам.</summary>
+        public float CrewProgress => _shownProgress;
         public int TotalCrewStages { get; private set; }
         public int CompletedCrewStages { get; private set; }
 
@@ -54,6 +56,10 @@ namespace Nebula.Tasks
         // ------------------------------------------------------------------ assignment
         public void AssignAll(List<PlayerState> players, MatchSettings settings, NebulaRandom rng)
         {
+            _settings = settings;
+            _crewProgress = 0f;
+            _shownProgress = 0f;
+
             var common = TaskCatalog.CommonPool();
             var chosenCommon = new List<TaskDefinition>();
             var commonCopy = new List<TaskDefinition>(common);
@@ -258,7 +264,7 @@ namespace Nebula.Tasks
                 _crewProgress = value;
                 // правило «шкала обновляется только на собраниях»: считаем прогресс
                 // как обычно (от него зависит победа), но экипажу его не показываем
-                if (GameSettings.Match == null || GameSettings.Match.TaskBarUpdatesAlways) PublishProgress();
+                if (_settings == null || _settings.TaskBarUpdatesAlways) PublishProgress();
             }
         }
 
@@ -268,6 +274,13 @@ namespace Nebula.Tasks
             if (Mathf.Approximately(_shownProgress, _crewProgress)) return;
             _shownProgress = _crewProgress;
             GameEvents.RaiseTaskProgressChanged(_crewProgress);
+        }
+
+        /// <summary>Прогресс, присланный хостом: клиент сам ничего не считает.</summary>
+        public void SetRemoteProgress(float value)
+        {
+            _crewProgress = Mathf.Clamp01(value);
+            _shownProgress = _crewProgress;
         }
 
         public bool AllCrewTasksDone() => TotalCrewStages > 0 && CompletedCrewStages >= TotalCrewStages;

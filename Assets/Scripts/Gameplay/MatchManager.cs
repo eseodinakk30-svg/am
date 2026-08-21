@@ -1154,6 +1154,7 @@ namespace Nebula.Gameplay
 
         public void ApplyRemoteTaskProgress(int playerId, float progress)
         {
+            Tasks?.SetRemoteProgress(progress);
             GameEvents.RaiseTaskProgressChanged(progress);
         }
 

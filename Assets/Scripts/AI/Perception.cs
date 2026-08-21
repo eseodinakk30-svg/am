@@ -47,6 +47,13 @@ namespace Nebula.AI
             return p.DisguisedAs >= 0 ? p.DisguisedAs : p.Id;
         }
 
+        /// <summary>Тот же приём для реакций мозга: он тоже обязан работать с обликом.</summary>
+        private PlayerState ApparentPlayer(PlayerState p)
+        {
+            if (p == null || p.DisguisedAs < 0 || _match == null) return p;
+            return _match.PlayerById(p.DisguisedAs) ?? p;
+        }
+
         public void Reset()
         {
             VisibleNow.Clear();
@@ -165,7 +172,7 @@ namespace Nebula.AI
             if (sawKiller && sawVictim && _brain.Rng.Chance(0.94f))
             {
                 _brain.Memory.Add(MemoryKind.KillWitnessed, Apparent(killer), victim.Id, victim.BodyRoomId, victim.BodyDeck, _match.MatchTime);
-                _brain.OnKillWitnessed(killer, victim);
+                _brain.OnKillWitnessed(ApparentPlayer(killer), victim);
             }
             else if (sawVictim)
             {
@@ -187,7 +194,7 @@ namespace Nebula.AI
 
             _brain.Memory.Add(MemoryKind.VentWitnessed, Apparent(player), self.Id, vent.RoomId, vent.Def.Deck, _match.MatchTime,
                 1f, entering ? 1 : 0);
-            _brain.OnVentWitnessed(player);
+            _brain.OnVentWitnessed(ApparentPlayer(player));
         }
 
         public void OnTaskStage(PlayerState player, TaskInstance task, int stage)
