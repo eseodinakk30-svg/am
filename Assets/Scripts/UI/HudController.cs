@@ -319,7 +319,7 @@ namespace Nebula.UI
             var sab = _match.Sabotage;
             var security = StationLayout.Get("security");
             var command = StationLayout.Get("command");
-            bool ghostTasks = local.IsGhost && _match.Settings.GhostsDoTasks;
+            bool ghostTasks = local.IsGhost && _match.Settings != null && _match.Settings.GhostsDoTasks;
             var lift = StationView.Instance != null && !local.InVent
                 ? StationView.Instance.NearestElevator(local.Position, local.Deck, 3.2f) : null;
 
@@ -349,12 +349,13 @@ namespace Nebula.UI
             }
             else if (alive && command != null && local.RoomId == command.Id
                      && (sab == null || !sab.CommsDown)
-                     && _match.Tasks.FindTaskInRange(local, 2.4f) == null)
+                     && (_match.Tasks == null || _match.Tasks.FindTaskInRange(local, 2.4f) == null))
             {
                 useLabel = "АДМИН";
                 useEnabled = true;
             }
-            else if (!local.InVent && (alive || ghostTasks) && _match.Tasks.FindTaskInRange(local) != null)
+            else if (!local.InVent && (alive || ghostTasks) && _match.Tasks != null
+                     && _match.Tasks.FindTaskInRange(local) != null)
             {
                 useLabel = "ЗАДАНИЕ";
                 useEnabled = true;
