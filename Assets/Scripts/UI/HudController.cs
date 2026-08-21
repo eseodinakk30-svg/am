@@ -363,6 +363,7 @@ namespace Nebula.UI
             var sab = _match.Sabotage;
             var security = StationLayout.Get("security");
             var command = StationLayout.Get("command");
+            var comms = StationLayout.Get("comms");
             bool ghostTasks = local.IsGhost && _match.Settings != null && _match.Settings.GhostsDoTasks;
             var lift = StationView.Instance != null && !local.InVent
                 ? StationView.Instance.NearestElevator(local.Position, local.Deck, 3.2f) : null;
@@ -389,6 +390,13 @@ namespace Nebula.UI
             else if (alive && security != null && local.RoomId == security.Id)
             {
                 useLabel = "КАМЕРЫ";
+                useEnabled = true;
+            }
+            else if (alive && comms != null && local.RoomId == comms.Id
+                     && (sab == null || !sab.CommsDown)
+                     && (_match.Tasks == null || _match.Tasks.FindTaskInRange(local, 2.4f) == null))
+            {
+                useLabel = "ЖУРНАЛ";
                 useEnabled = true;
             }
             else if (alive && command != null && local.RoomId == command.Id

@@ -100,6 +100,7 @@ namespace Nebula.Map
             foreach (var area in StationLayout.Areas)
             {
                 if (area.Deck != deck) continue;
+                if (area.Type == AreaType.Block) continue;   // перегородка пола не имеет
                 var tint = area.Tint;
                 int key = (Mathf.RoundToInt(tint.r * 255) << 16) | (Mathf.RoundToInt(tint.g * 255) << 8) | Mathf.RoundToInt(tint.b * 255);
                 if (!groups.TryGetValue(key, out var mb))
@@ -127,7 +128,7 @@ namespace Nebula.Map
             foreach (var area in StationLayout.Areas)
             {
                 if (area.Deck != deck) continue;
-                if (area.Type == AreaType.Doorway) continue;
+                if (area.Type == AreaType.Doorway || area.Type == AreaType.Block) continue;
                 BuildRoomDressing(area, deckRoot);
             }
         }
@@ -387,6 +388,15 @@ namespace Nebula.Map
                 if (other.Deck != area.Deck) continue;
                 if (other.OwnerRoom != area.Key) continue;
                 Add(StationLayout.CellToWorld(area.Deck, other.CenterCell.x, other.CenterCell.y), 3.6f);
+            }
+
+            // внутренние перегородки: декор не должен прорастать сквозь них
+            foreach (var other in StationLayout.Areas)
+            {
+                if (other.Type != AreaType.Block || other.Deck != area.Deck) continue;
+                if (!area.Rect.Overlaps(other.Rect)) continue;
+                float half = (other.Rect.width + other.Rect.height) * 0.25f * StationLayout.CellSize;
+                Add(StationLayout.CellToWorld(area.Deck, other.CenterCell.x, other.CenterCell.y), half + 1.2f);
             }
 
             foreach (var vent in StationLayout.Vents)

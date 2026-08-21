@@ -84,6 +84,28 @@ namespace Nebula.Map
                 if (a.Type != AreaType.Doorway) continue;
                 Fill(a);
             }
+            // Перегородки вырезаются последними — поверх и комнат, и проёмов.
+            foreach (var a in StationLayout.Areas)
+            {
+                if (a.Type != AreaType.Block) continue;
+                Carve(a);
+            }
+        }
+
+        /// <summary>Вырезает прямоугольник из проходимости — внутренняя перегородка.</summary>
+        private void Carve(AreaDef a)
+        {
+            int d = (int)a.Deck;
+            for (int z = a.Rect.yMin; z < a.Rect.yMax; z++)
+            {
+                for (int x = a.Rect.xMin; x < a.Rect.xMax; x++)
+                {
+                    if (x < 0 || z < 0 || x >= _w || z >= _h) continue;
+                    int i = z * _w + x;
+                    _walkable[d][i] = false;
+                    _area[d][i] = -1;
+                }
+            }
         }
 
         private void Fill(AreaDef a)

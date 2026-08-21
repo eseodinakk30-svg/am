@@ -411,6 +411,93 @@ namespace Nebula.UI
         }
     }
 
+    // ================================================================= журнал связи
+    /// <summary>
+    /// Журнал перемещений в узле связи: кто в какой отсек заходил за этот круг.
+    /// Третий информационный пост станции — камеры показывают «сейчас»,
+    /// админ-карта показывает «сколько где», журнал показывает «кто куда шёл».
+    /// </summary>
+    public class DoorLogView : ModalBase
+    {
+        private const int Rows = 12;
+
+        private MatchManager _match;
+        private readonly List<Text> _lines = new List<Text>();
+        private Text _empty;
+        private float _timer;
+
+        public static DoorLogView Create(Transform parent, MatchManager match)
+        {
+            var go = new GameObject("DoorLogView", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var view = go.AddComponent<DoorLogView>();
+            view._match = match;
+            view.BuildUi();
+            go.SetActive(false);
+            return view;
+        }
+
+        private void BuildUi()
+        {
+            BuildFrame(transform, "ЖУРНАЛ ПЕРЕМЕЩЕНИЙ", new Vector2(1120f, 720f), Close);
+
+            for (int i = 0; i < Rows; i++)
+            {
+                var rowRt = UIKit.Node(Panel, "Row" + i, new Vector2(0f, 240f - i * 48f), new Vector2(1000f, 44f));
+                UIKit.PanelStretch(rowRt, "Bg", i % 2 == 0
+                    ? new Color(0.06f, 0.08f, 0.13f, 0.75f)
+                    : new Color(0.05f, 0.07f, 0.11f, 0.55f), 8);
+                _lines.Add(UIKit.Label(rowRt, "", Vector2.zero, new Vector2(970f, 40f), 24,
+                    TextAnchor.MiddleLeft, Art.TextMain));
+            }
+
+            _empty = UIKit.Label(Panel, "Датчики пока ничего не записали", new Vector2(0f, 0f),
+                new Vector2(900f, 44f), 26, TextAnchor.MiddleCenter, Art.TextDim);
+        }
+
+        public void Open()
+        {
+            gameObject.SetActive(true);
+            Refresh();
+        }
+
+        private void Update()
+        {
+            if (!IsOpen || _match == null || _match.Local == null) return;
+
+            // отошёл от консоли — журнал закрывается, как камеры и админ-карта
+            var comms = StationLayout.Get("comms");
+            if (comms != null && _match.Local.RoomId != comms.Id) { Close(); return; }
+            if (_match.Sabotage != null && _match.Sabotage.CommsDown) { Close(); return; }
+
+            _timer -= Time.unscaledDeltaTime;
+            if (_timer <= 0f) { _timer = 0.5f; Refresh(); }
+        }
+
+        private void Refresh()
+        {
+            var log = _match.DoorLog;
+            int shown = 0;
+
+            for (int i = 0; i < _lines.Count; i++)
+            {
+                bool has = log != null && i < log.Count;
+                _lines[i].transform.parent.gameObject.SetActive(has);
+                if (!has) continue;
+
+                var e = log[i];
+                var who = _match.PlayerById(e.SubjectId);
+                int ago = Mathf.Max(0, Mathf.RoundToInt(_match.MatchTime - e.Time));
+                _lines[i].text = string.Format("{0,4} с назад   {1}  →  {2}",
+                    ago, who != null ? who.Label : "?", StationLayout.NameOf(e.RoomId));
+                _lines[i].color = who != null ? who.Color : Art.TextDim;
+                shown++;
+            }
+
+            if (_empty != null) _empty.gameObject.SetActive(shown == 0);
+        }
+    }
+
     // ================================================================= big map
     public class BigMapView : ModalBase
     {

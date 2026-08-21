@@ -166,9 +166,14 @@ namespace Nebula.UI
             for (int i = c; i < _crewMarkers.Count; i++) _crewMarkers[i].gameObject.SetActive(false);
 
             // task objectives
+            // При заглушенной связи список заданий в HUD скрыт — метки на карте
+            // не должны его выдавать, иначе правило не работает.
+            var sabotage = _match.Sabotage;
+            bool hideTasks = sabotage != null && sabotage.CommsDown;
             int index = 0;
             foreach (var task in local.Tasks)
             {
+                if (hideTasks) break;
                 if (task.IsComplete) continue;
                 var area = StationLayout.Get(task.CurrentRoomId);
                 if (area == null || area.Deck != _deck) continue;
@@ -182,7 +187,12 @@ namespace Nebula.UI
                     _taskMarkers.Add(marker);
                 }
                 marker.gameObject.SetActive(true);
-                marker.rectTransform.anchoredPosition = CellToLocal(area.CenterCell.x, area.CenterCell.y);
+                // ведём к самой консоли: станции стоят по периметру, и центр
+                // комнаты может быть в полутора десятках метров от них
+                var station = _match.Tasks != null ? _match.Tasks.NextStationFor(task)
+                                                   : StationLayout.AreaCenterWorld(area.Id);
+                var sc = StationLayout.WorldToCell(station);
+                marker.rectTransform.anchoredPosition = CellToLocal(sc.x, sc.y);
                 index++;
             }
             for (int i = index; i < _taskMarkers.Count; i++) _taskMarkers[i].gameObject.SetActive(false);
@@ -210,7 +220,7 @@ namespace Nebula.UI
             }
 
             // sabotage marker
-            var sab = _match.Sabotage;
+            var sab = sabotage;
             if (sab != null && sab.IsActive && sab.Panels.Count > 0)
             {
                 var panel = sab.Panels[0];

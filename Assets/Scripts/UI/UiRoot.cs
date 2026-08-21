@@ -36,6 +36,7 @@ namespace Nebula.UI
         private RoleRevealScreen _roleReveal;
         private VitalsView _vitals;
         private ShapeshiftView _shapeshift;
+        private DoorLogView _doorLog;
         private LobbyScreen _lobby;
         private LobbyConsole _console;
         private GameOverScreen _gameOver;
@@ -115,6 +116,7 @@ namespace Nebula.UI
             _roleReveal = RoleRevealScreen.Create(_gameLayer);
             _vitals = VitalsView.Create(_gameLayer, _match);
             _shapeshift = ShapeshiftView.Create(_gameLayer, _match);
+            _doorLog = DoorLogView.Create(_gameLayer, _match);
             _lobby = LobbyScreen.Create(_gameLayer, _match);
             _console = LobbyConsole.Create(_gameLayer, null);
             _lobby.OnStart = () => { _console.Close(); _match.LaunchFromLobby(); };
@@ -134,6 +136,7 @@ namespace Nebula.UI
             _player.OnRequestAdmin = () => _admin.Open();
             _player.OnRequestVitals = () => _vitals.Open();
             _player.OnRequestShapeshift = () => _shapeshift.Open();
+            _player.OnRequestDoorLog = () => _doorLog.Open();
             _player.OnRequestLobbyConsole = () => _console.Open();
             _player.IsNearLobbyLaptop = () => _lobby.PlayerNearLaptop(_match.Local);
 
@@ -172,6 +175,7 @@ namespace Nebula.UI
                 if (_bigMap.IsOpen) _bigMap.Close();
                 if (_vitals.IsOpen) _vitals.Close();
                 if (_shapeshift.IsOpen) _shapeshift.Close();
+                if (_doorLog.IsOpen) _doorLog.Close();
             }
         }
 

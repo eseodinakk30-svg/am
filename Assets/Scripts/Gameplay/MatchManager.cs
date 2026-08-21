@@ -463,6 +463,7 @@ namespace Nebula.Gameplay
                 case MatchPhase.Roaming:
                     TickRoaming(dt);
                     TickSpecialRoles(dt);
+                    TickDoorLog();
                     break;
 
                 case MatchPhase.MeetingIntro:
@@ -724,6 +725,10 @@ namespace Nebula.Gameplay
             // облик спадает при созыве: иначе за столом сидели бы два одинаковых
             // персонажа, и обсуждать было бы нечего
             foreach (var p in Players) if (p.DisguisedAs >= 0) EndShapeshift(p);
+
+            // журнал перемещений относится к прошедшему кругу — после собрания
+            // все стоят в столовой, и старые записи только путали бы
+            ResetDoorLog();
 
             // правило «шкала заданий обновляется только на собраниях»
             Tasks?.PublishProgress();
@@ -1150,6 +1155,59 @@ namespace Nebula.Gameplay
             Meeting.Ejected = p;
             Meeting.Skipped = p == null;
             GameEvents.RaiseEjected(p, wasInfiltrator);
+        }
+
+        // ==================================================================
+        //  журнал перемещений (узел связи)
+        // ==================================================================
+        /// <summary>Одна запись журнала: кого зафиксировали и где.</summary>
+        public struct DoorLogEntry
+        {
+            public int SubjectId;      // тот, кого видит журнал: облик, а не носитель
+            public int RoomId;
+            public float Time;
+        }
+
+        private const int DoorLogCapacity = 24;
+        private readonly List<DoorLogEntry> _doorLog = new List<DoorLogEntry>(DoorLogCapacity);
+        private readonly Dictionary<int, int> _doorLogLastRoom = new Dictionary<int, int>();
+
+        /// <summary>Записи от новых к старым.</summary>
+        public IReadOnlyList<DoorLogEntry> DoorLog => _doorLog;
+
+        /// <summary>
+        /// Узел связи пишет, кто в какой отсек заходил. Никаких скрытых данных:
+        /// фиксируется только смена отсека, ровно то же, что увидел бы датчик на
+        /// двери. Оборотень попадает в журнал под чужим обликом.
+        /// </summary>
+        private void TickDoorLog()
+        {
+            for (int i = 0; i < Players.Count; i++)
+            {
+                var p = Players[i];
+                if (p == null || !p.IsAlive || p.InVent || p.RoomId < 0) continue;
+
+                if (_doorLogLastRoom.TryGetValue(p.Id, out int prev) && prev == p.RoomId) continue;
+                _doorLogLastRoom[p.Id] = p.RoomId;
+                if (prev == p.RoomId) continue;
+
+                var area = StationLayout.Get(p.RoomId);
+                if (area == null || area.Type != AreaType.Room) continue;   // коридоры не пишем
+
+                _doorLog.Insert(0, new DoorLogEntry
+                {
+                    SubjectId = p.DisguisedAs >= 0 ? p.DisguisedAs : p.Id,
+                    RoomId = p.RoomId,
+                    Time = MatchTime,
+                });
+                if (_doorLog.Count > DoorLogCapacity) _doorLog.RemoveAt(_doorLog.Count - 1);
+            }
+        }
+
+        private void ResetDoorLog()
+        {
+            _doorLog.Clear();
+            _doorLogLastRoom.Clear();
         }
 
         public void ApplyRemoteTaskProgress(int playerId, float progress)

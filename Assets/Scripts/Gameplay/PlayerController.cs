@@ -39,6 +39,7 @@ namespace Nebula.Gameplay
         public System.Action OnRequestVitals;
         public System.Action OnRequestShapeshift;
         public System.Action OnRequestLobbyConsole;
+        public System.Action OnRequestDoorLog;
         public System.Func<bool> IsNearLobbyLaptop;
 
         public PlayerState Self => _self;
@@ -127,6 +128,19 @@ namespace Nebula.Gameplay
                 OnRequestCameras?.Invoke();
                 return;
             }
+            // журнал перемещений — в узле связи; при заглушенной связи он молчит
+            var commsRoom = StationLayout.Get("comms");
+            if (commsRoom != null && _self.RoomId == commsRoom.Id && _self.IsAlive &&
+                (_match.Sabotage == null || !_match.Sabotage.CommsDown))
+            {
+                var nearTaskHere = _match.Tasks.FindTaskInRange(_self, 2.4f);
+                if (nearTaskHere == null)
+                {
+                    OnRequestDoorLog?.Invoke();
+                    return;
+                }
+            }
+
             var command = StationLayout.Get("command");
             if (command != null && _self.RoomId == command.Id && _self.IsAlive &&
                 (_match.Sabotage == null || !_match.Sabotage.CommsDown))

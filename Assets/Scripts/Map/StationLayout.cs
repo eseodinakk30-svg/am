@@ -24,6 +24,8 @@ namespace Nebula.Map
         Room = 0,
         Corridor = 1,
         Doorway = 2,
+        /// <summary>Внутренняя перегородка: вырезает клетки из проходимости.</summary>
+        Block = 3,
     }
 
     public class AreaDef
@@ -99,6 +101,7 @@ namespace Nebula.Map
         {
             BuildUpperDeck();
             BuildLowerDeck();
+            BuildPartitions();
             BuildVents();
             BuildElevators();
             BuildCameras();
@@ -132,6 +135,26 @@ namespace Nebula.Map
             };
             Areas.Add(a);
             return a;
+        }
+
+        /// <summary>
+        /// Внутренняя перегородка внутри комнаты. В отличие от стен по периметру,
+        /// она рисуется и обсчитывается автоматически: сетка проходимости вырезает
+        /// эти клетки, а строитель стен ставит стену там, где проходимое граничит
+        /// с непроходимым. Нужна ради слепых углов — раньше любая комната
+        /// просматривалась от двери насквозь, и спрятаться было негде.
+        /// </summary>
+        private static void Block(DeckId deck, int x, int z, int w, int h)
+        {
+            Areas.Add(new AreaDef
+            {
+                Key = null,
+                Name = null,
+                Deck = deck,
+                Type = AreaType.Block,
+                Rect = new RectInt(x, z, w, h),
+                Tint = CorridorTint,
+            });
         }
 
         private static void Door(DeckId deck, int x, int z, int w, int h, string ownerRoom, bool closable = true)
@@ -299,6 +322,48 @@ namespace Nebula.Map
         }
 
         // ------------------------------------------------------------------ vents
+        /// <summary>
+        /// Внутренние перегородки: слепые углы и закутки. Раньше каждая комната
+        /// была честным прямоугольником и просматривалась от двери целиком —
+        /// ни спрятаться, ни подкараулить. Каждая перегородка оставляет обход
+        /// с обеих сторон, связность проверена заливкой.
+        /// </summary>
+        private static void BuildPartitions()
+        {
+            const DeckId U = DeckId.Upper;
+            const DeckId L = DeckId.Lower;
+
+            // --- верхняя палуба ---
+            // Электрощитовая: классический закуток за шкафами
+            Block(U, 9, 8, 3, 10);
+            // Двигательный отсек: перегородка между гондолами
+            Block(U, 63, 9, 6, 3);
+            // Склад: стеллаж поперёк
+            Block(U, 31, 12, 10, 3);
+            // Лаборатория: ширма у дальней стены
+            Block(U, 60, 70, 12, 3);
+            // Жилой сектор: перегородка между отсеками коек
+            Block(U, 90, 36, 3, 9);
+            // Реактор: экран у восточной стены
+            Block(U, 19, 63, 3, 10);
+            // Оранжерея: длинная грядка-перегородка
+            Block(U, 86, 65, 10, 3);
+            // Медотсек: ширма у смотровой
+            Block(U, 32, 63, 3, 9);
+
+            // --- нижняя палуба ---
+            // Трюм: штабель контейнеров
+            Block(L, 27, 45, 3, 10);
+            // Серверная: ряд стоек
+            Block(L, 57, 45, 12, 3);
+            // Технический уровень: короб магистрали
+            Block(L, 56, 13, 3, 10);
+            // Ангар дронов: перегородка площадок
+            Block(L, 88, 13, 10, 3);
+            // Архив: стеллаж
+            Block(L, 58, 66, 10, 3);
+        }
+
         private static void BuildVents()
         {
             int id = 0;
