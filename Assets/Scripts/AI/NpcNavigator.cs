@@ -58,6 +58,10 @@ namespace Nebula.AI
             _index = 0;
             if (owner == null) return;
 
+            // палуба могла смениться помимо лифта — например, через вентиляцию;
+            // без пересчёта агент шёл к лифту, уже находясь на нужной палубе
+            _needsElevator = owner.Deck != _destinationDeck;
+
             var grid = StationGrid.Instance;
             var view = StationView.Instance;
             if (grid == null) return;

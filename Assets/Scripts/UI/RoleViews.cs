@@ -155,7 +155,7 @@ namespace Nebula.UI
             {
                 bool has = i < _targets.Count;
                 _buttons[i].gameObject.SetActive(has);
-                if (has) _labels[i].text = _targets[i].Name;
+                if (has) _labels[i].text = _targets[i].Label;
             }
 
             gameObject.SetActive(true);

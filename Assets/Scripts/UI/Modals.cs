@@ -333,6 +333,7 @@ namespace Nebula.UI
         private MatchManager _match;
         private readonly List<Text> _counts = new List<Text>();
         private readonly List<AreaDef> _rooms = new List<AreaDef>();
+        private MinimapView _minimap;
         private float _timer;
 
         public static AdminView Create(Transform parent, MatchManager match)
@@ -350,7 +351,7 @@ namespace Nebula.UI
         {
             BuildFrame(transform, "АДМИН-КАРТА", new Vector2(1240f, 720f), Close);
             var mapHolder = UIKit.Node(Panel, "Map", new Vector2(0f, -20f), new Vector2(1150f, 600f));
-            var minimap = MinimapView.Create(mapHolder, _match, Vector2.zero, new Vector2(1150f, 600f), true);
+            _minimap = MinimapView.Create(mapHolder, _match, Vector2.zero, new Vector2(1150f, 600f), true);
 
             foreach (var area in StationLayout.AllRooms())
             {
@@ -383,10 +384,16 @@ namespace Nebula.UI
 
         private void Refresh()
         {
+            // карта показывает одну палубу за раз — цифры второй палубы легли бы
+            // поверх чужих комнат и врали бы игроку
+            var shown = _minimap != null ? _minimap.Deck : DeckId.Upper;
+
             for (int i = 0; i < _rooms.Count; i++)
             {
-                int count = 0;
                 var area = _rooms[i];
+                if (area.Deck != shown) { _counts[i].text = ""; continue; }
+
+                int count = 0;
                 foreach (var p in _match.Players)
                 {
                     if (!p.IsAlive || p.InVent) continue;

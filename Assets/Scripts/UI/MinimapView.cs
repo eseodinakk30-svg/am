@@ -22,6 +22,7 @@ namespace Nebula.UI
         private RectTransform _layer;
         private MatchManager _match;
         private DeckId _deck = DeckId.Upper;
+        public DeckId Deck => _deck;
         private Vector2 _size;
         private bool _showLabels;
 
