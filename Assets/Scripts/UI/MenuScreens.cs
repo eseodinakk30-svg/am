@@ -80,19 +80,22 @@ namespace Nebula.UI
                 () => ShowTab("СЕТЬ"), new Color(0.20f, 0.45f, 0.68f, 0.96f), 30, 18);
             UIKit.ButtonIn(UIKit.Row(menuBox, "Look", 0f, 0f, -76f, 86f), "ПЕРСОНАЖ",
                 () => ShowTab("ПЕРСОНАЖ"), new Color(0.36f, 0.28f, 0.55f, 0.96f), 30, 18);
-            UIKit.ButtonIn(UIKit.Row(menuBox, "Options", 0f, 0f, -174f, 86f), "НАСТРОЙКИ",
+            UIKit.ButtonIn(UIKit.Row(menuBox, "Help", 0f, 0f, -174f, 86f), "КАК ИГРАТЬ",
+                () => ShowTab("КАК ИГРАТЬ"), new Color(0.52f, 0.40f, 0.18f, 0.96f), 30, 18);
+            UIKit.ButtonIn(UIKit.Row(menuBox, "Options", 0f, 0f, -272f, 86f), "НАСТРОЙКИ",
                 () => ShowTab("НАСТРОЙКИ"), new Color(0.22f, 0.26f, 0.34f, 0.96f), 30, 18);
 
             // ---- страница с разделами --------------------------------------
             _tabHost = UIKit.Region(_root, "TabHost", new Vector2(0.02f, 0.10f), new Vector2(0.98f, 0.86f));
             BuildPlayTab();
+            BuildHelpTab();
             BuildRulesTab();
             BuildCharacterTab();
             BuildNetworkTab();
             BuildSettingsTab();
 
             _tabBar = UIKit.Region(_root, "TabBar", new Vector2(0.02f, 0.87f), new Vector2(0.98f, 0.97f));
-            string[] tabNames = { "ИГРА", "ПРАВИЛА", "ПЕРСОНАЖ", "СЕТЬ", "НАСТРОЙКИ" };
+            string[] tabNames = { "ИГРА", "КАК ИГРАТЬ", "ПРАВИЛА", "ПЕРСОНАЖ", "СЕТЬ", "НАСТРОЙКИ" };
             for (int i = 0; i < tabNames.Length; i++)
             {
                 string key = tabNames[i];
@@ -186,6 +189,129 @@ namespace Nebula.UI
         }
 
         // ------------------------------------------------------------------ rules
+        // ------------------------------------------------------------------ справка
+        /// <summary>
+        /// «Как играть». Раздел «ПРАВИЛА» — это настройки матча, а объяснения не
+        /// было вообще: новый игрок попадал на станцию с тремя десятками типов
+        /// заданий и не понимал ни цели, ни того, зачем нужны камеры и журнал.
+        /// Описания ролей берутся из MatchManager, чтобы справка и карточка роли
+        /// не разъезжались между собой.
+        /// </summary>
+        private void BuildHelpTab()
+        {
+            var tab = NewTab("КАК ИГРАТЬ");
+            UIKit.ScrollViewStretch(tab, "HelpScroll", out var content);
+
+            float y = -18f;
+
+            void Section(string title)
+            {
+                var rt = UIKit.Node(content, "H", Vector2.zero, new Vector2(1200f, 44f));
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+                rt.pivot = new Vector2(0.5f, 1f);
+                rt.anchoredPosition = new Vector2(0f, y);
+                UIKit.Label(rt, title, Vector2.zero, new Vector2(1180f, 40f), 28,
+                            TextAnchor.MiddleLeft, Art.AccentWarm, FontStyle.Bold);
+                y -= 52f;
+            }
+
+            void Para(string text)
+            {
+                var rt = UIKit.Node(content, "P", Vector2.zero, new Vector2(1200f, 30f));
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+                rt.pivot = new Vector2(0.5f, 1f);
+
+                var label = UIKit.Label(rt, text, Vector2.zero, new Vector2(1180f, 30f), 22,
+                                        TextAnchor.UpperLeft, Art.TextMain);
+                label.horizontalOverflow = HorizontalWrapMode.Wrap;
+                label.verticalOverflow = VerticalWrapMode.Overflow;
+
+                // высоту меряем уже по выставленной ширине, иначе абзацы наползают
+                var lrt = label.rectTransform;
+                lrt.anchorMin = new Vector2(0f, 1f);
+                lrt.anchorMax = new Vector2(1f, 1f);
+                lrt.pivot = new Vector2(0.5f, 1f);
+                lrt.offsetMin = new Vector2(10f, 0f);
+                lrt.offsetMax = new Vector2(-10f, 0f);
+                lrt.sizeDelta = new Vector2(lrt.sizeDelta.x, 30f);
+
+                float h = Mathf.Max(30f, label.preferredHeight);
+                lrt.sizeDelta = new Vector2(lrt.sizeDelta.x, h);
+                rt.sizeDelta = new Vector2(1200f, h);
+                rt.anchoredPosition = new Vector2(0f, y);
+                y -= h + 10f;
+            }
+
+            Section("ЦЕЛЬ");
+            Para("На станции девять или больше человек, и несколько из них — диверсанты. "
+               + "Экипаж побеждает, если выполнит все задания или изгонит всех диверсантов. "
+               + "Диверсанты побеждают, если их станет столько же, сколько экипажа, "
+               + "или если критическая авария не будет устранена вовремя.");
+
+            Section("УПРАВЛЕНИЕ");
+            Para("Слева джойстик — им ходишь. Справа круглые кнопки: большая синяя «ДЕЙСТВИЕ» "
+               + "делает то, что написано на ней прямо сейчас — открывает задание, вызывает лифт, "
+               + "включает камеры. Её же нужно удерживать, когда чинишь аварию.");
+            Para("«ДОКЛАД» появляется рядом с телом. «СБОР» работает только в столовой и "
+               + "ограничен по числу вызовов на человека.");
+
+            Section("ЗАДАНИЯ");
+            Para("Список заданий — слева сверху, его можно свернуть нажатием на заголовок. "
+               + "Полоска над списком — общий прогресс экипажа: когда она заполнится, экипаж победил. "
+               + "Жёлтая стрелка в центре экрана ведёт к ближайшей цели, а если задания остались "
+               + "на другой палубе — к ближайшему лифту.");
+            Para("Диверсанту задания тоже выдаются, но выполнить он их не может — только сделать вид. "
+               + "Поэтому по одному лишь стоянию у консоли судить нельзя.");
+
+            Section("СОБРАНИЯ");
+            Para("Собрание созывают кнопкой в столовой или докладом о теле. В чате можно писать: "
+               + "экипаж читает названия цветов и комнат, так что «красный был в реакторе» — "
+               + "рабочая фраза, а не просто текст. Голосование заканчивается изгнанием того, "
+               + "за кого отдано больше голосов, или пропуском.");
+
+            Section("ИНФОРМАЦИОННЫЕ ПОСТЫ");
+            Para("Пост наблюдения — камеры: видно, кто где находится прямо сейчас. Когда кто-то "
+               + "смотрит, лампочки на камерах мигают красным, и это видно всем.");
+            Para("Командный центр — админ-карта: видно, сколько человек в каждом отсеке, но не кто именно.");
+            Para("Узел связи — журнал перемещений: видно, кто в какой отсек заходил за этот круг.");
+            Para("Всё это перестаёт работать, пока связь заглушена диверсантом.");
+
+            Section("ДИВЕРСАНТЫ");
+            Para("Убийство, вентиляция и аварии. Авария разводит экипаж по станции и открывает окно "
+               + "для убийства; критическая авария — реактор и кислород — убивает всех, если её "
+               + "не починить вдвоём вовремя.");
+
+            Section("РОЛИ");
+            foreach (var line in RoleHelpLines()) Para(line);
+
+            content.sizeDelta = new Vector2(content.sizeDelta.x, Mathf.Abs(y) + 40f);
+        }
+
+        /// <summary>Описания ролей — из того же места, откуда их берёт карточка роли.</summary>
+        private static string[] RoleHelpLines()
+        {
+            var probe = new PlayerState();
+            var lines = new System.Collections.Generic.List<string>();
+
+            void Add(Role side, SpecialRole special)
+            {
+                probe.Role = side;
+                probe.Special = special;
+                lines.Add("<b>" + MatchManager.RoleTitle(probe) + "</b> — " + MatchManager.RoleHint(probe));
+            }
+
+            Add(Role.Crew, SpecialRole.None);
+            Add(Role.Crew, SpecialRole.Scientist);
+            Add(Role.Crew, SpecialRole.Engineer);
+            Add(Role.Crew, SpecialRole.Tracker);
+            Add(Role.Crew, SpecialRole.GuardianAngel);
+            Add(Role.Crew, SpecialRole.Noisemaker);
+            Add(Role.Infiltrator, SpecialRole.None);
+            Add(Role.Infiltrator, SpecialRole.Shapeshifter);
+            Add(Role.Infiltrator, SpecialRole.Phantom);
+            return lines.ToArray();
+        }
+
         private void BuildRulesTab()
         {
             var tab = NewTab("ПРАВИЛА");
@@ -558,7 +684,12 @@ namespace Nebula.UI
                 UIKit.Icon(card.transform, "Chip", Art.Circle(64), new Vector2(-cw * 0.5f + 42f, 0f),
                     new Vector2(46f, 46f), p.Color);
 
-                string role = p.Role == Role.Infiltrator ? "<color=#EA4B4F>предатель</color>" : "экипаж";
+                // Итог матча — единственное место, где роли раскрываются всем.
+                // Раньше писали только сторону, и профессии, которых теперь девять,
+                // так и оставались тайной даже после игры.
+                string tint = p.Role == Role.Infiltrator ? "#EA4B4F" : "#8FD8A8";
+                string role = "<color=" + tint + ">"
+                            + MatchManager.RoleTitle(p).ToLowerInvariant() + "</color>";
                 string status = p.Life == LifeState.Ejected ? " · изгнан"
                     : p.Life == LifeState.Murdered ? " · убит" : "";
                 UIKit.Label(card.transform, $"{p.Label} — {role}{status}",
