@@ -493,6 +493,9 @@ namespace Nebula.Gameplay
         private void BeginRound()
         {
             Sabotage.ResetForRound();
+            // журнал относится к текущему кругу; сбрасываем здесь, когда все уже
+            // расставлены по местам, а не в момент созыва собрания
+            ResetDoorLog();
             foreach (var p in Players)
             {
                 if (p.Role == Role.Infiltrator && p.IsAlive)
@@ -726,9 +729,6 @@ namespace Nebula.Gameplay
             // персонажа, и обсуждать было бы нечего
             foreach (var p in Players) if (p.DisguisedAs >= 0) EndShapeshift(p);
 
-            // журнал перемещений относится к прошедшему кругу — после собрания
-            // все стоят в столовой, и старые записи только путали бы
-            ResetDoorLog();
 
             // правило «шкала заданий обновляется только на собраниях»
             Tasks?.PublishProgress();
@@ -1187,9 +1187,13 @@ namespace Nebula.Gameplay
                 var p = Players[i];
                 if (p == null || !p.IsAlive || p.InVent || p.RoomId < 0) continue;
 
-                if (_doorLogLastRoom.TryGetValue(p.Id, out int prev) && prev == p.RoomId) continue;
+                // Первое наблюдение — не событие входа: без флага known значение
+                // prev по умолчанию равно нулю, а это идентификатор первой области
+                // в списке, и запись про неё молча терялась.
+                bool known = _doorLogLastRoom.TryGetValue(p.Id, out int prev);
+                if (known && prev == p.RoomId) continue;
                 _doorLogLastRoom[p.Id] = p.RoomId;
-                if (prev == p.RoomId) continue;
+                if (!known) continue;
 
                 var area = StationLayout.Get(p.RoomId);
                 if (area == null || area.Type != AreaType.Room) continue;   // коридоры не пишем
@@ -1204,10 +1208,20 @@ namespace Nebula.Gameplay
             }
         }
 
+        /// <summary>
+        /// Очищает журнал и заново запоминает, кто где стоит. Пересев важен:
+        /// после собрания все стоят в столовой, и без него журнал сразу
+        /// заполнялся бы десятком одинаковых строк «вошёл в Столовую».
+        /// </summary>
         private void ResetDoorLog()
         {
             _doorLog.Clear();
             _doorLogLastRoom.Clear();
+            for (int i = 0; i < Players.Count; i++)
+            {
+                var p = Players[i];
+                if (p != null && p.RoomId >= 0) _doorLogLastRoom[p.Id] = p.RoomId;
+            }
         }
 
         public void ApplyRemoteTaskProgress(int playerId, float progress)

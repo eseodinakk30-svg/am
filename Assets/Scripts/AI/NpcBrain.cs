@@ -726,6 +726,7 @@ namespace Nebula.AI
             _accusedThisMeeting.Clear();
             _accusersOfMe.Clear();
             _pendingQuestionFrom = -1;
+            _urgeToSpeak = 0f;
             _saidAlibi = false;
             _saidGreeting = false;
             _needDefense = false;
@@ -1042,11 +1043,10 @@ namespace Nebula.AI
                 case SpeechIntent.SkipCall:
                     // Обычная реплика без явного обвинения раньше не давала вообще
                     // ничего — игроку казалось, что он пишет в стену. Теперь она
-                    // хотя бы попадает в разговор: названного разбирают, а сам
-                    // говорящий перестаёт быть «молчуном».
+                    // втягивает агента в разговор. Доверие тут не трогаем: Doubt —
+                    // это разбор всего, что не распозналось как обвинение, и любое
+                    // нейтральное упоминание цвета роняло бы человеку репутацию.
                     if (act.TargetId == Owner.Id) _pendingQuestionFrom = speaker.Id;
-                    else if (act.TargetId >= 0)
-                        Suspicion.AddTrust(act.TargetId, -0.18f * Personality.RumourWeight);
                     break;
             }
 

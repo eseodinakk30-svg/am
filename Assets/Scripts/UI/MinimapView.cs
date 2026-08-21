@@ -85,6 +85,7 @@ namespace Nebula.UI
             foreach (var area in StationLayout.Areas)
             {
                 if (area.Deck != _deck) continue;
+                if (area.Type == AreaType.Block) continue;   // перегородка — не пол
                 var center = CellToLocal(area.Rect.xMin + area.Rect.width * 0.5f, area.Rect.yMin + area.Rect.height * 0.5f);
                 var size = SizeOf(area.Rect);
                 var color = area.Type == AreaType.Room

@@ -216,7 +216,6 @@ namespace Nebula.AI
                     if (score > bestScore)
                     {
                         bestScore = score;
-                        _lastCameraCheck = now;
                         best = new NpcGoal
                         {
                             Kind = GoalKind.CheckCameras,
@@ -242,7 +241,6 @@ namespace Nebula.AI
                     if (score > bestScore)
                     {
                         bestScore = score;
-                        _lastAdminCheck = now;
                         best = new NpcGoal
                         {
                             Kind = GoalKind.CheckAdmin,
@@ -258,7 +256,11 @@ namespace Nebula.AI
             }
 
             // ---- nothing better, или просто перерыв: гуляем ---------------
-            if (best.Kind == GoalKind.Idle || (onBreak && bestScore < 0.62f))
+            // Перерыв вытесняет только задания и безделье. Починку саботажа,
+            // сопровождение и слежку он трогать не имеет права: неспешный
+            // саботаж вдалеке весит около 0.35 и иначе менялся бы на прогулку.
+            bool breakable = best.Kind == GoalKind.Idle || best.Kind == GoalKind.DoTask;
+            if (best.Kind == GoalKind.Idle || (onBreak && breakable && bestScore < 0.62f))
             {
                 var rooms = StationLayout.RoomsOfDeck(self.Deck);
                 if (rooms.Count > 0)
@@ -276,6 +278,12 @@ namespace Nebula.AI
                     };
                 }
             }
+
+            // Отметку «сходил» ставим только тому, кто действительно выиграл выбор.
+            // Раньше её ставила сама ветка, и админ-карта, перебив камеры, сжигала
+            // их пятидесятипятисекундный откат, хотя на пост никто не пошёл.
+            if (best.Kind == GoalKind.CheckCameras) _lastCameraCheck = now;
+            else if (best.Kind == GoalKind.CheckAdmin) _lastAdminCheck = now;
 
             return best;
         }

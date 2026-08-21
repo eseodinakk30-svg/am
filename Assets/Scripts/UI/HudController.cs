@@ -202,17 +202,12 @@ namespace Nebula.UI
         private Image TopBanner(string name, float y, float height, Color bg,
                                 out Text label, int fontSize, Color textColor, FontStyle style)
         {
-            const float LeftClear = 500f;    // список заданий: 20 + 460 + зазор
-            const float RightClear = 478f;   // миникарта: 24 + 430 + зазор
-
             var rt = UIKit.Node(_root, name, Vector2.zero, new Vector2(0f, height));
             rt.anchorMin = new Vector2(0f, 1f);
             rt.anchorMax = new Vector2(1f, 1f);
             rt.pivot = new Vector2(0.5f, 1f);
-            rt.offsetMin = new Vector2(LeftClear, 0f);
-            rt.offsetMax = new Vector2(-RightClear, 0f);
             rt.sizeDelta = new Vector2(rt.sizeDelta.x, height);
-            rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, y);
+            _banners.Add(new Banner { Rect = rt, BaseY = y, Height = height });
 
             var panel = UIKit.PanelStretch(rt, "Bg", bg, 14);
 
@@ -238,6 +233,57 @@ namespace Nebula.UI
 
             panel.gameObject.SetActive(false);
             return panel;
+        }
+
+        private struct Banner
+        {
+            public RectTransform Rect;
+            public float BaseY;
+            public float Height;
+        }
+
+        private readonly List<Banner> _banners = new List<Banner>();
+        private float _bannerWidth = -1f;
+
+        /// <summary>
+        /// Раскладка верхних полос. Обычно они висят между списком заданий и
+        /// миникартой, но на узком экране (планшет 4:3) там остаётся меньше
+        /// четырёхсот единиц, и текст саботажа не читается. В этом случае полосы
+        /// уходят вниз под обе панели и занимают всю ширину.
+        /// </summary>
+        private void LayoutBanners()
+        {
+            if (_root == null || _banners.Count == 0) return;
+            float w = _root.rect.width;
+            if (w <= 1f || Mathf.Abs(w - _bannerWidth) < 1f) return;
+            _bannerWidth = w;
+
+            const float LeftClear = 500f;    // список заданий: 20 + 460 + зазор
+            const float RightClear = 478f;   // миникарта: 24 + 430 + зазор
+            const float MinWidth = 420f;
+            const float BelowPanels = -410f; // ниже и списка заданий, и миникарты
+
+            bool roomy = w - LeftClear - RightClear >= MinWidth;
+            float extraY = 0f;
+
+            for (int i = 0; i < _banners.Count; i++)
+            {
+                var b = _banners[i];
+                if (roomy)
+                {
+                    b.Rect.offsetMin = new Vector2(LeftClear, 0f);
+                    b.Rect.offsetMax = new Vector2(-RightClear, 0f);
+                    b.Rect.anchoredPosition = new Vector2(0f, b.BaseY);
+                }
+                else
+                {
+                    b.Rect.offsetMin = new Vector2(24f, 0f);
+                    b.Rect.offsetMax = new Vector2(-24f, 0f);
+                    b.Rect.anchoredPosition = new Vector2(0f, BelowPanels + extraY);
+                    extraY -= b.Height + 10f;
+                }
+                b.Rect.sizeDelta = new Vector2(b.Rect.sizeDelta.x, b.Height);
+            }
         }
 
         private void OnDestroy()
@@ -301,6 +347,7 @@ namespace Nebula.UI
             var local = _match.Local;
             if (local == null) return;
 
+            LayoutBanners();
             _player.StickInput = _stick != null ? _stick.Value : Vector2.zero;
 
             UpdateButtons(local);
