@@ -879,6 +879,19 @@ namespace Nebula.Gameplay
             // персонажа, и обсуждать было бы нечего
             foreach (var p in Players) if (p.DisguisedAs >= 0) EndShapeshift(p);
 
+            // Невидимость тоже спадает: TickSpecialRoles работает только в раунде,
+            // и фантом иначе просидел бы всё собрание невидимым за столом, а потом
+            // вышел бы в новый круг с недоистёкшим запасом.
+            foreach (var p in Players)
+            {
+                if (p.PhantomLeft > 0f) EndPhantom(p);
+                p.ProtectedLeft = 0f;
+                p.ShieldedId = -1;
+                p.ShieldLeft = 0f;
+                p.TrackedId = -1;
+                p.TrackLeft = 0f;
+            }
+
 
             // правило «шкала заданий обновляется только на собраниях»
             Tasks?.PublishProgress();

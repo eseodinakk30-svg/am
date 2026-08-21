@@ -117,10 +117,12 @@ namespace Nebula.AI
             if (Owner.IsGhost)
             {
                 TickGhost(dt, actor);
+                UseGhostAbility();
                 return;
             }
 
             Sense.Sense(dt);
+            UseSpecialAbility();
 
             if (_reportDelay > 0f)
             {
@@ -614,6 +616,56 @@ namespace Nebula.AI
                 actor.ExitVent(current);
                 _goal = NpcGoal.Idle;
             }
+        }
+
+        // ------------------------------------------------------------------ умения профессий
+        /// <summary>
+        /// Умения, которыми агент пользуется сам. Ни одно из них не требует
+        /// скрытых знаний: следопыт вешает метку на того, кого сам подозревает,
+        /// фантом уходит в тень, когда собирается убивать.
+        /// </summary>
+        private void UseSpecialAbility()
+        {
+            if (Owner.Special == SpecialRole.Tracker && Match.CanTrack(Owner))
+            {
+                // метку ставим на главного подозреваемого, а если подозревать
+                // некого — на того, кого давно не видели
+                int suspect = Suspicion.MostSuspicious(out float heat);
+                if (suspect >= 0 && heat > 0.45f && Rng.Chance(0.5f))
+                {
+                    var target = Match.PlayerById(suspect);
+                    if (target != null && target.IsAlive) Match.BeginTrack(Owner, target);
+                }
+                return;
+            }
+
+            if (Owner.Special == SpecialRole.Phantom && Match.CanPhantom(Owner))
+            {
+                // в тень уходим перед охотой: рядом есть жертва и убийство готово
+                if (Owner.Role == Role.Infiltrator && Owner.KillCooldown < 6f
+                    && Match.FindKillTarget(Owner) == null && Rng.Chance(0.35f))
+                {
+                    Match.BeginPhantom(Owner);
+                }
+            }
+        }
+
+        /// <summary>Ангел-хранитель действует уже призраком.</summary>
+        private void UseGhostAbility()
+        {
+            if (Owner.Special != SpecialRole.GuardianAngel || !Match.CanShield(Owner)) return;
+
+            // прикрываем того, кому доверяем больше всех: своего подозреваемого
+            // спасать смысла нет
+            PlayerState best = null;
+            float bestTrust = float.MinValue;
+            foreach (var p in Match.Players)
+            {
+                if (p == null || !p.IsAlive || p.Id == Owner.Id) continue;
+                float trust = Suspicion.Trust(p.Id);
+                if (trust > bestTrust) { bestTrust = trust; best = p; }
+            }
+            if (best != null && Rng.Chance(0.4f)) Match.BeginShield(Owner, best);
         }
 
         private void WatchCameras(float dt)

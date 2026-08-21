@@ -622,11 +622,13 @@ namespace Nebula.UI
                     ? new Color(0.30f, 0.34f, 0.46f, 0.92f)
                     : new Color(0.38f, 0.26f, 0.56f, 0.92f);
                 _roleButtonLabel.text = hidden
-                    ? "ТЕНЬ " + Mathf.CeilToInt(local.PhantomLeft)
+                    ? "ВЫЙТИ " + Mathf.CeilToInt(local.PhantomLeft)
                     : local.PhantomCooldown > 0.05f
                         ? Mathf.CeilToInt(local.PhantomCooldown).ToString()
                         : "ТЕНЬ";
-                SetInteractable(_roleButton, _match.CanPhantom(local));
+                // пока фантом невидим, кнопка обязана остаться нажимаемой — иначе
+                // выйти из тени досрочно нельзя, а CanPhantom в этот момент ложна
+                SetInteractable(_roleButton, hidden || _match.CanPhantom(local));
                 return;
             }
 

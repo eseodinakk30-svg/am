@@ -28,7 +28,7 @@ namespace Nebula.UI
         private Image _noiseMarker;      // вспышка на месте гибели шумовика
         private Vector3 _noisePos;
         private DeckId _noiseDeck;
-        private float _noiseLeft;
+        private float _noiseUntil;
         private Vector2 _size;
         private bool _showLabels;
 
@@ -57,12 +57,6 @@ namespace Nebula.UI
         {
             UIKit.PanelStretch(_root, "Bg", new Color(0.04f, 0.06f, 0.10f, 0.82f), 14);
             _layer = UIKit.Stretch(_root, "Layer", 8f);
-            _trackMarker = UIKit.Icon(_layer, "Track", Art.Circle(48, 4f), Vector2.zero, new Vector2(20f, 20f),
-                new Color(0.45f, 0.85f, 0.98f));
-            _trackMarker.gameObject.SetActive(false);
-            _noiseMarker = UIKit.Icon(_layer, "Noise", Art.Circle(48, 3f), Vector2.zero, new Vector2(26f, 26f),
-                new Color(0.98f, 0.36f, 0.30f));
-            _noiseMarker.gameObject.SetActive(false);
             GameEvents.NoiseMark += OnNoiseMark;
 
             _deckLabel = UIKit.Label(_root, "", new Vector2(0f, _size.y * 0.5f - 16f), new Vector2(_size.x, 28f), 18,
@@ -234,8 +228,23 @@ namespace Nebula.UI
                 for (int i = v; i < _ventMarkers.Count; i++) _ventMarkers[i].gameObject.SetActive(false);
             }
 
+            // Метки создаём здесь, а не в Build: Redraw сносит всех детей слоя,
+            // поэтому всё, что построено заранее, умирает при первой же
+            // перерисовке и при каждой смене палубы.
+            if (_trackMarker == null)
+            {
+                _trackMarker = UIKit.Icon(_layer, "Track", Art.Circle(48, 4f), Vector2.zero, new Vector2(20f, 20f),
+                    new Color(0.45f, 0.85f, 0.98f));
+                _trackMarker.gameObject.SetActive(false);
+            }
+            if (_noiseMarker == null)
+            {
+                _noiseMarker = UIKit.Icon(_layer, "Noise", Art.Circle(48, 3f), Vector2.zero, new Vector2(26f, 26f),
+                    new Color(0.98f, 0.36f, 0.30f));
+                _noiseMarker.gameObject.SetActive(false);
+            }
+
             // --- метка следопыта ---
-            if (_trackMarker != null)
             {
                 var mark = local.TrackedId >= 0 ? _match.PlayerById(local.TrackedId) : null;
                 bool show = mark != null && mark.IsAlive && mark.Deck == _deck;
@@ -249,10 +258,10 @@ namespace Nebula.UI
             }
 
             // --- вспышка на месте гибели шумовика ---
-            if (_noiseMarker != null)
             {
-                if (_noiseLeft > 0f) _noiseLeft -= Time.unscaledDeltaTime;
-                bool show = _noiseLeft > 0f && _noiseDeck == _deck;
+                // этот проход идёт по таймеру, а не каждый кадр: считаем по часам,
+                // иначе вспышка держалась бы в разы дольше положенного
+                bool show = Time.unscaledTime < _noiseUntil && _noiseDeck == _deck;
                 _noiseMarker.gameObject.SetActive(show);
                 if (show)
                 {
@@ -281,7 +290,8 @@ namespace Nebula.UI
         {
             _noisePos = pos;
             _noiseDeck = deck;
-            _noiseLeft = _match != null && _match.Settings != null ? _match.Settings.NoiseMarkerSeconds : 14f;
+            float span = _match != null && _match.Settings != null ? _match.Settings.NoiseMarkerSeconds : 14f;
+            _noiseUntil = Time.unscaledTime + span;
         }
 
         private void OnDestroy()

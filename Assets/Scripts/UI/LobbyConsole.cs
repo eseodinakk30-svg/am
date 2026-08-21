@@ -62,55 +62,67 @@ namespace Nebula.UI
 
             float rowY = -34f;
             const float Pitch = 60f;
-            Vector2 NextRow()
+
+            // Строки надо вешать на верх содержимого. UIKit кладёт детей по центру
+            // родителя, а содержимое прокрутки высокое и прижато к верху: строки
+            // с обычным якорем уехали бы вниз на половину его высоты, и половина
+            // списка оказалась бы за нижней границей, куда не долистать.
+            RectTransform NextRow()
             {
-                var pos = new Vector2(0f, rowY);
+                var rt = UIKit.Node(rules_content, "Row", Vector2.zero, new Vector2(560f, 56f));
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+                rt.pivot = new Vector2(0.5f, 1f);
+                rt.anchoredPosition = new Vector2(0f, rowY);
                 rowY -= Pitch;
-                return pos;
+                return rt;
             }
             void Header(string text)
             {
-                UIKit.Label(rules_content, text, new Vector2(-40f, rowY + 6f), new Vector2(420f, 34f), 21,
+                var rt = UIKit.Node(rules_content, "Header", Vector2.zero, new Vector2(560f, 34f));
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+                rt.pivot = new Vector2(0.5f, 1f);
+                rt.anchoredPosition = new Vector2(0f, rowY);
+                UIKit.Label(rt, text, new Vector2(-155f, 0f), new Vector2(250f, 34f), 21,
                             TextAnchor.MiddleLeft, Art.Accent, FontStyle.Bold);
                 rowY -= 44f;
             }
 
-            IntRow(rules_content, "Участников", NextRow(), 4, 15,
+            IntRow(NextRow(), "Участников", Vector2.zero, 4, 15,
                    () => rules.PlayerCount, v => rules.PlayerCount = v);
-            IntRow(rules_content, "Диверсантов", NextRow(), 1, 3,
+            IntRow(NextRow(), "Диверсантов", Vector2.zero, 1, 3,
                    () => rules.InfiltratorCount, v => rules.InfiltratorCount = v);
-            Cycler(rules_content, "Моя роль", NextRow(), 3,
+            Cycler(NextRow(), "Моя роль", Vector2.zero, 3,
                    () => (int)rules.MyRole, v => rules.MyRole = (RoleWish)v,
                    i => i == 0 ? "как повезёт" : i == 1 ? "всегда экипаж" : "всегда диверсант");
 
             Header("РОЛИ ЭКИПАЖА");
-            IntRow(rules_content, "Учёных", NextRow(), 0, 3,
+            IntRow(NextRow(), "Учёных", Vector2.zero, 0, 3,
                    () => rules.ScientistCount, v => rules.ScientistCount = v);
-            IntRow(rules_content, "Инженеров", NextRow(), 0, 3,
+            IntRow(NextRow(), "Инженеров", Vector2.zero, 0, 3,
                    () => rules.EngineerCount, v => rules.EngineerCount = v);
-            IntRow(rules_content, "Следопытов", NextRow(), 0, 2,
+            IntRow(NextRow(), "Следопытов", Vector2.zero, 0, 2,
                    () => rules.TrackerCount, v => rules.TrackerCount = v);
-            IntRow(rules_content, "Ангелов-хранителей", NextRow(), 0, 2,
+            IntRow(NextRow(), "Ангелов-хранителей", Vector2.zero, 0, 2,
                    () => rules.GuardianCount, v => rules.GuardianCount = v);
-            IntRow(rules_content, "Шумовиков", NextRow(), 0, 2,
+            IntRow(NextRow(), "Шумовиков", Vector2.zero, 0, 2,
                    () => rules.NoisemakerCount, v => rules.NoisemakerCount = v);
 
             Header("РОЛИ ДИВЕРСАНТОВ");
-            IntRow(rules_content, "Оборотней", NextRow(), 0, 2,
+            IntRow(NextRow(), "Оборотней", Vector2.zero, 0, 2,
                    () => rules.ShapeshifterCount, v => rules.ShapeshifterCount = v);
-            IntRow(rules_content, "Фантомов", NextRow(), 0, 2,
+            IntRow(NextRow(), "Фантомов", Vector2.zero, 0, 2,
                    () => rules.PhantomCount, v => rules.PhantomCount = v);
 
             Header("МАТЧ");
-            FloatRow(rules_content, "Перезарядка убийства", NextRow(), 10f, 60f, 1f,
+            FloatRow(NextRow(), "Перезарядка убийства", Vector2.zero, 10f, 60f, 1f,
                      () => rules.KillCooldown, v => rules.KillCooldown = v, "с");
-            FloatRow(rules_content, "Скорость", NextRow(), 3.5f, 9f, 0.1f,
+            FloatRow(NextRow(), "Скорость", Vector2.zero, 3.5f, 9f, 0.1f,
                      () => rules.MoveSpeed, v => rules.MoveSpeed = v, "");
-            IntRow(rules_content, "Коротких заданий", NextRow(), 0, 8,
+            IntRow(NextRow(), "Коротких заданий", Vector2.zero, 0, 8,
                    () => rules.ShortTasks, v => rules.ShortTasks = v);
-            IntRow(rules_content, "Долгих заданий", NextRow(), 0, 6,
+            IntRow(NextRow(), "Долгих заданий", Vector2.zero, 0, 6,
                    () => rules.LongTasks, v => rules.LongTasks = v);
-            IntRow(rules_content, "Общих заданий", NextRow(), 0, 4,
+            IntRow(NextRow(), "Общих заданий", Vector2.zero, 0, 4,
                    () => rules.CommonTasks, v => rules.CommonTasks = v);
 
             // высота содержимого = сколько строк реально выложили
@@ -178,8 +190,12 @@ namespace Nebula.UI
             {
                 int v = Mathf.Clamp(get() + delta, min, max);
                 set(v);
-                value.text = v.ToString();
+                // Validate может срезать значение обратно — например, если ролей
+                // набралось больше, чем экипажа. Подпись берём после проверки,
+                // иначе консоль показывала бы роль, которой в матче нет.
+                GameSettings.Match.Validate();
                 GameSettings.Save();
+                value.text = get().ToString();
             }
 
             UIKit.Button(host, "−", pos + new Vector2(-70f, 0f), new Vector2(56f, 48f), () => Step(-1), Art.PanelSoft, 24, 12);
