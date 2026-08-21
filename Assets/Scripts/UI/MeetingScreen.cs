@@ -112,11 +112,14 @@ namespace Nebula.UI
             // ---- ejection overlay ----
             var eject = UIKit.Stretch(_root, "Eject");
             _ejectPanel = UIKit.PanelStretch(eject, "Bg", new Color(0.01f, 0.015f, 0.03f, 0.98f), 0);
-            _ejectActor = UIKit.Node(eject, "Actor", new Vector2(-500f, 0f), new Vector2(120f, 120f));
+            // Фигурка выброшенного и подпись под ней были соседями фона, а гасили
+            // именно фон: сцена изгнания уезжала, а силуэт и надпись «выброшен в
+            // космос» оставались висеть поверх собрания и всего остального.
+            _ejectActor = UIKit.Node(_ejectPanel.transform, "Actor", new Vector2(-500f, 0f), new Vector2(120f, 120f));
             var body = _ejectActor.gameObject.AddComponent<Image>();
             body.sprite = Art.Circle(128);
             body.color = Color.white;
-            _ejectText = UIKit.Label(eject, "", new Vector2(0f, -240f), new Vector2(1300f, 90f), 40,
+            _ejectText = UIKit.Label(_ejectPanel.transform, "", new Vector2(0f, -240f), new Vector2(1300f, 90f), 40,
                 TextAnchor.MiddleCenter, Art.TextMain, FontStyle.Bold);
             _ejectPanel.gameObject.SetActive(false);
 

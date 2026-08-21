@@ -144,23 +144,19 @@ namespace Nebula.UI
             mm.pivot = new Vector2(1f, 1f);
             mm.anchoredPosition = new Vector2(-24f, -24f);
 
-            _mapButton = UIKit.CircleButton(_root, "КАРТА", new Vector2(1f, 1f), new Vector2(-24f, -270f), 96f,
+            // Миникарта занимает сверху 275 единиц, а кнопка стояла на -270 с
+            // якорем в правом верхнем углу — то есть налезала на её нижний край.
+            _mapButton = UIKit.CircleButton(_root, "КАРТА", new Vector2(1f, 1f), new Vector2(-24f, -315f), 96f,
                 new Color(0.2f, 0.24f, 0.32f, 0.9f), () => UiRoot.Instance?.ToggleBigMap(), out _);
 
             // ---- alerts ----------------------------------------------------
-            var alert = UIKit.Anchored(_root, "Alert", new Vector2(0.5f, 1f), new Vector2(0f, -20f), new Vector2(900f, 74f));
-            _alertPanel = UIKit.PanelStretch(alert, "Bg", new Color(0.55f, 0.10f, 0.12f, 0.92f), 14);
-            _alertText = UIKit.Label(alert, "", Vector2.zero, new Vector2(880f, 70f), 26,
-                TextAnchor.MiddleCenter, Color.white, FontStyle.Bold);
-            _alertText.rectTransform.anchorMin = _alertText.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            _alertPanel.gameObject.SetActive(false);
-
-            var toast = UIKit.Anchored(_root, "Toast", new Vector2(0.5f, 1f), new Vector2(0f, -160f), new Vector2(760f, 62f));
-            _toastPanel = UIKit.PanelStretch(toast, "Bg", new Color(0.06f, 0.08f, 0.13f, 0.9f), 14);
-            _toastText = UIKit.Label(toast, "", Vector2.zero, new Vector2(740f, 58f), 24,
-                TextAnchor.MiddleCenter, Art.TextMain);
-            _toastText.rectTransform.anchorMin = _toastText.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            _toastPanel.gameObject.SetActive(false);
+            // Баннер и всплывашка шириной 900 и 760 стояли по центру и на телефоне
+            // залезали слева на список заданий, справа на миникарту. Растягиваем их
+            // между боковыми панелями, а не задаём ширину числом.
+            _alertPanel = TopBanner("Alert", -20f, 74f, new Color(0.55f, 0.10f, 0.12f, 0.92f),
+                                    out _alertText, 26, Color.white, FontStyle.Bold);
+            _toastPanel = TopBanner("Toast", -160f, 62f, new Color(0.06f, 0.08f, 0.13f, 0.9f),
+                                    out _toastText, 24, Art.TextMain, FontStyle.Normal);
 
             _timerText = UIKit.Label(_root, "", Vector2.zero, new Vector2(400f, 50f), 30, TextAnchor.MiddleCenter, Art.AccentWarm, FontStyle.Bold);
             var tr = _timerText.rectTransform;
@@ -171,9 +167,11 @@ namespace Nebula.UI
             // ---- repair progress ------------------------------------------
             var repair = UIKit.Anchored(_root, "Repair", new Vector2(0.5f, 0f), new Vector2(0f, 300f), new Vector2(560f, 70f));
             _repairPanel = UIKit.PanelStretch(repair, "Bg", new Color(0.05f, 0.08f, 0.12f, 0.9f), 12);
-            _repairFill = UIKit.Bar(repair, Vector2.zero, new Vector2(540f, 42f), new Color(0f, 0f, 0f, 0.4f), Art.Accent, 8);
+            // Полоса и надпись «УДЕРЖИВАЙ ДЕЙСТВИЕ» были соседями фона, а гасили
+            // именно фон — поэтому они висели на экране весь матч.
+            _repairFill = UIKit.Bar(_repairPanel.transform, Vector2.zero, new Vector2(540f, 42f), new Color(0f, 0f, 0f, 0.4f), Art.Accent, 8);
             _repairFill.rectTransform.anchorMin = _repairFill.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            _repairLabel = UIKit.Label(repair, "УДЕРЖИВАЙ ДЕЙСТВИЕ", Vector2.zero, new Vector2(540f, 60f), 22,
+            _repairLabel = UIKit.Label(_repairPanel.transform, "УДЕРЖИВАЙ ДЕЙСТВИЕ", Vector2.zero, new Vector2(540f, 60f), 22,
                 TextAnchor.MiddleCenter, Color.white);
             _repairLabel.rectTransform.anchorMin = _repairLabel.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             _repairPanel.gameObject.SetActive(false);
@@ -194,6 +192,52 @@ namespace Nebula.UI
 
             GameEvents.Announce += ShowToast;
             GameEvents.PhaseChanged += OnPhase;
+        }
+
+        /// <summary>
+        /// Полоса под верхней кромкой, зажатая между списком заданий слева и
+        /// миникартой справа. Ширина считается от краёв экрана, поэтому на любом
+        /// соотношении сторон полоса не накрывает боковые панели.
+        /// </summary>
+        private Image TopBanner(string name, float y, float height, Color bg,
+                                out Text label, int fontSize, Color textColor, FontStyle style)
+        {
+            const float LeftClear = 500f;    // список заданий: 20 + 460 + зазор
+            const float RightClear = 478f;   // миникарта: 24 + 430 + зазор
+
+            var rt = UIKit.Node(_root, name, Vector2.zero, new Vector2(0f, height));
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.offsetMin = new Vector2(LeftClear, 0f);
+            rt.offsetMax = new Vector2(-RightClear, 0f);
+            rt.sizeDelta = new Vector2(rt.sizeDelta.x, height);
+            rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, y);
+
+            var panel = UIKit.PanelStretch(rt, "Bg", bg, 14);
+
+            // Текст обязан быть ребёнком фона, а не его соседом: панель гасят через
+            // SetActive на фоне, и надпись-сосед оставалась висеть на экране.
+            var trt = UIKit.Node(panel.transform, "Text", Vector2.zero, Vector2.zero);
+            trt.anchorMin = Vector2.zero;
+            trt.anchorMax = Vector2.one;
+            trt.offsetMin = new Vector2(14f, 4f);
+            trt.offsetMax = new Vector2(-14f, -4f);
+            label = trt.gameObject.AddComponent<Text>();
+            label.font = Art.UiFont;
+            label.fontSize = fontSize;
+            label.fontStyle = style;
+            label.color = textColor;
+            label.alignment = TextAnchor.MiddleCenter;
+            label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            label.verticalOverflow = VerticalWrapMode.Truncate;
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = 14;
+            label.resizeTextMaxSize = fontSize;
+            label.raycastTarget = false;
+
+            panel.gameObject.SetActive(false);
+            return panel;
         }
 
         private void OnDestroy()
