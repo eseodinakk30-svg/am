@@ -311,31 +311,56 @@ namespace Nebula.UI
             SetInteractable(_emergencyButton, canEmergency);
             _emergencyLabel.text = local.EmergenciesUsed >= _match.Settings.EmergencyMeetingsPerPlayer ? "0" : "СБОР";
 
-            // use button context label
+            // Подпись кнопки действия обязана повторять порядок PlayerController.DoUse,
+            // иначе она обещает одно, а нажатие делает другое: на посту наблюдения
+            // рядом с консолью задания надпись говорила «ЗАДАНИЕ», а открывались камеры.
             string useLabel = "ДЕЙСТВИЕ";
             bool useEnabled = false;
             var sab = _match.Sabotage;
-            if (sab != null && sab.IsActive && sab.PanelIndexNear(local.Position, local.Deck) >= 0)
+            var security = StationLayout.Get("security");
+            var command = StationLayout.Get("command");
+            bool ghostTasks = local.IsGhost && _match.Settings.GhostsDoTasks;
+            var lift = StationView.Instance != null && !local.InVent
+                ? StationView.Instance.NearestElevator(local.Position, local.Deck, 3.2f) : null;
+
+            if (_match.Phase == MatchPhase.Lobby)
             {
-                useLabel = "ЧИНИТЬ";
-                useEnabled = true;
+                // в комнате ожидания кнопка открывает консоль у ноутбука; без этой
+                // ветки она оставалась серой, а подсказка звала на неё нажать
+                bool nearLaptop = _player.IsNearLobbyLaptop != null && _player.IsNearLobbyLaptop();
+                useLabel = "КОНСОЛЬ";
+                useEnabled = nearLaptop;
             }
-            else if (StationView.Instance != null && StationView.Instance.NearestElevator(local.Position, local.Deck, 3.2f) != null)
+            else if (sab != null && sab.IsActive && sab.PanelIndexNear(local.Position, local.Deck) >= 0)
+            {
+                // ремонт идёт удержанием той же кнопки
+                useLabel = "ЧИНИТЬ";
+                useEnabled = alive;
+            }
+            else if (lift != null && lift.Cooldown <= 0f && alive)
             {
                 useLabel = "ЛИФТ";
                 useEnabled = true;
             }
-            else
+            else if (alive && security != null && local.RoomId == security.Id)
             {
-                var security = StationLayout.Get("security");
-                var command = StationLayout.Get("command");
-                var task = _match.Tasks.FindTaskInRange(local);
-                if (task != null) { useLabel = "ЗАДАНИЕ"; useEnabled = true; }
-                else if (security != null && local.RoomId == security.Id) { useLabel = "КАМЕРЫ"; useEnabled = true; }
-                else if (command != null && local.RoomId == command.Id) { useLabel = "АДМИН"; useEnabled = true; }
+                useLabel = "КАМЕРЫ";
+                useEnabled = true;
+            }
+            else if (alive && command != null && local.RoomId == command.Id
+                     && (sab == null || !sab.CommsDown)
+                     && _match.Tasks.FindTaskInRange(local, 2.4f) == null)
+            {
+                useLabel = "АДМИН";
+                useEnabled = true;
+            }
+            else if (!local.InVent && (alive || ghostTasks) && _match.Tasks.FindTaskInRange(local) != null)
+            {
+                useLabel = "ЗАДАНИЕ";
+                useEnabled = true;
             }
             _useLabel.text = useLabel;
-            SetInteractable(_useButton, useEnabled && (local.IsAlive || local.IsGhost));
+            SetInteractable(_useButton, useEnabled);
         }
 
         private static void SetInteractable(Image button, bool on)
