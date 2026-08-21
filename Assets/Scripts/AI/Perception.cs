@@ -36,6 +36,17 @@ namespace Nebula.AI
 
         public void Bind(MatchManager match) => _match = match;
 
+        /// <summary>
+        /// Кого агент ВИДИТ, а не кто это на самом деле. Оборотень в чужом облике
+        /// запоминается под именем того, чей облик он принял, — иначе умение было
+        /// бы чисто косметическим: NPC всё равно обвиняли бы носителя.
+        /// </summary>
+        private static int Apparent(PlayerState p)
+        {
+            if (p == null) return -1;
+            return p.DisguisedAs >= 0 ? p.DisguisedAs : p.Id;
+        }
+
         public void Reset()
         {
             VisibleNow.Clear();
@@ -87,15 +98,17 @@ namespace Nebula.AI
                 if (other == null) continue;
                 if (!_brain.Rng.Chance(personality.NoticeChance)) continue;
 
+                int seen = Apparent(other);
+
                 float confidence = Mathf.Clamp01(0.65f + personality.Observation * 0.35f);
                 if (_match.Sabotage != null && _match.Sabotage.LightsDown) confidence *= 0.68f;
 
-                _brain.Memory.Add(MemoryKind.Sighting, id, self.Id, other.RoomId, other.Deck, _match.MatchTime, confidence);
+                _brain.Memory.Add(MemoryKind.Sighting, seen, self.Id, other.RoomId, other.Deck, _match.MatchTime, confidence);
 
-                if (!_lastKnownRoom.TryGetValue(id, out int prev) || prev != other.RoomId)
+                if (!_lastKnownRoom.TryGetValue(seen, out int prev) || prev != other.RoomId)
                 {
-                    _lastKnownRoom[id] = other.RoomId;
-                    _brain.Memory.Add(MemoryKind.RoomEntry, id, self.Id, other.RoomId, other.Deck, _match.MatchTime, confidence);
+                    _lastKnownRoom[seen] = other.RoomId;
+                    _brain.Memory.Add(MemoryKind.RoomEntry, seen, self.Id, other.RoomId, other.Deck, _match.MatchTime, confidence);
                 }
 
                 // third party pairings: "I saw A together with B"
@@ -103,8 +116,9 @@ namespace Nebula.AI
                 {
                     var third = _match.PlayerById(VisibleNow[j]);
                     if (third == null || third.RoomId != other.RoomId) continue;
-                    _brain.Memory.Add(MemoryKind.Sighting, other.Id, third.Id, other.RoomId, other.Deck, _match.MatchTime, confidence * 0.9f);
-                    _brain.Memory.Add(MemoryKind.Sighting, third.Id, other.Id, third.RoomId, third.Deck, _match.MatchTime, confidence * 0.9f);
+                    int seenThird = Apparent(third);
+                    _brain.Memory.Add(MemoryKind.Sighting, seen, seenThird, other.RoomId, other.Deck, _match.MatchTime, confidence * 0.9f);
+                    _brain.Memory.Add(MemoryKind.Sighting, seenThird, seen, third.RoomId, third.Deck, _match.MatchTime, confidence * 0.9f);
                 }
             }
 
@@ -113,7 +127,7 @@ namespace Nebula.AI
             {
                 var other = _match.PlayerById(VisibleNow[0]);
                 if (other != null && other.RoomId == self.RoomId)
-                    _brain.Memory.Add(MemoryKind.Alone, other.Id, self.Id, self.RoomId, self.Deck, _match.MatchTime, 0.9f);
+                    _brain.Memory.Add(MemoryKind.Alone, Apparent(other), self.Id, self.RoomId, self.Deck, _match.MatchTime, 0.9f);
             }
 
             // corpses in sight
@@ -134,7 +148,7 @@ namespace Nebula.AI
                 if (actor == null || actor.Visual == null) continue;
                 if (actor.Visual.State != AnimState.Work && actor.Visual.State != AnimState.Repair) continue;
                 if (!_brain.Rng.Chance(0.35f)) continue;
-                _brain.Memory.Add(MemoryKind.TaskObserved, id, self.Id, other.RoomId, other.Deck, _match.MatchTime, 0.75f);
+                _brain.Memory.Add(MemoryKind.TaskObserved, Apparent(other), self.Id, other.RoomId, other.Deck, _match.MatchTime, 0.75f);
             }
         }
 
@@ -150,7 +164,7 @@ namespace Nebula.AI
 
             if (sawKiller && sawVictim && _brain.Rng.Chance(0.94f))
             {
-                _brain.Memory.Add(MemoryKind.KillWitnessed, killer.Id, victim.Id, victim.BodyRoomId, victim.BodyDeck, _match.MatchTime);
+                _brain.Memory.Add(MemoryKind.KillWitnessed, Apparent(killer), victim.Id, victim.BodyRoomId, victim.BodyDeck, _match.MatchTime);
                 _brain.OnKillWitnessed(killer, victim);
             }
             else if (sawVictim)
@@ -171,7 +185,7 @@ namespace Nebula.AI
             if (!_match.CanSee(self, vent.transform.position, vent.Def.Deck)) return;
             if (!_brain.Rng.Chance(0.92f)) return;
 
-            _brain.Memory.Add(MemoryKind.VentWitnessed, player.Id, self.Id, vent.RoomId, vent.Def.Deck, _match.MatchTime,
+            _brain.Memory.Add(MemoryKind.VentWitnessed, Apparent(player), self.Id, vent.RoomId, vent.Def.Deck, _match.MatchTime,
                 1f, entering ? 1 : 0);
             _brain.OnVentWitnessed(player);
         }
@@ -185,11 +199,11 @@ namespace Nebula.AI
             if (task.Definition.Visual && !task.Fake)
             {
                 // a genuinely visible effect: strong exoneration
-                _brain.Memory.Add(MemoryKind.VisualTaskProof, player.Id, self.Id, player.RoomId, player.Deck, _match.MatchTime);
+                _brain.Memory.Add(MemoryKind.VisualTaskProof, Apparent(player), self.Id, player.RoomId, player.Deck, _match.MatchTime);
             }
             else
             {
-                _brain.Memory.Add(MemoryKind.TaskObserved, player.Id, self.Id, player.RoomId, player.Deck, _match.MatchTime, 0.7f);
+                _brain.Memory.Add(MemoryKind.TaskObserved, Apparent(player), self.Id, player.RoomId, player.Deck, _match.MatchTime, 0.7f);
             }
         }
 

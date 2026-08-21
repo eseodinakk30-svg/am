@@ -657,7 +657,9 @@ namespace Nebula.Gameplay
         public bool TryUseVent(PlayerState player, out VentPoint vent)
         {
             vent = null;
-            if (player == null || player.Role != Role.Infiltrator || !player.IsAlive) return false;
+            // не только диверсанты: инженеру вентиляция положена по роли, и без
+            // этой проверки кнопка вентиляции у него просто ничего не делала
+            if (player == null || !player.CanUseVents || !player.IsAlive) return false;
             if (Station == null) return false;
             vent = Station.NearestVent(player.Position, player.Deck, 2.6f);
             if (vent == null) return false;
