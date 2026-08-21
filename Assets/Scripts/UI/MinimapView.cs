@@ -268,9 +268,9 @@ namespace Nebula.UI
                     var nc = StationLayout.WorldToCell(_noisePos);
                     _noiseMarker.rectTransform.anchoredPosition = CellToLocal(nc.x, nc.y);
                     float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 7f);
-                    var c = _noiseMarker.color;
-                    c.a = Mathf.Lerp(0.35f, 1f, pulse);
-                    _noiseMarker.color = c;
+                    var noiseColor = _noiseMarker.color;
+                    noiseColor.a = Mathf.Lerp(0.35f, 1f, pulse);
+                    _noiseMarker.color = noiseColor;
                 }
             }
 
