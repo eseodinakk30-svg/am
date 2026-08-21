@@ -35,6 +35,25 @@ namespace Nebula.Core
         public float ShapeshiftCooldown;
         public float VitalsCharge = 1f;
 
+        // --- следопыт ---
+        /// <summary>За кем ведётся метка; -1 — ни за кем.</summary>
+        public int TrackedId = -1;
+        public float TrackLeft;
+        public float TrackCooldown;
+
+        // --- ангел-хранитель ---
+        /// <summary>Кого сейчас прикрывает щит; -1 — никого.</summary>
+        public int ShieldedId = -1;
+        public float ShieldLeft;
+        public float ShieldCooldown;
+        /// <summary>Щит на самом игроке: убийство по нему срывается.</summary>
+        public float ProtectedLeft;
+
+        // --- фантом ---
+        public float PhantomLeft;
+        public float PhantomCooldown;
+        public bool IsPhantomHidden => PhantomLeft > 0f;
+
         public bool IsImpostor => Role == Role.Infiltrator;
         public bool CanUseVents => Role == Role.Infiltrator || Special == SpecialRole.Engineer;
         public LifeState Life = LifeState.Alive;
@@ -105,6 +124,15 @@ namespace Nebula.Core
             ShapeshiftLeft = 0f;
             ShapeshiftCooldown = 0f;
             VitalsCharge = 1f;
+            TrackedId = -1;
+            TrackLeft = 0f;
+            TrackCooldown = 0f;
+            ShieldedId = -1;
+            ShieldLeft = 0f;
+            ShieldCooldown = 0f;
+            ProtectedLeft = 0f;
+            PhantomLeft = 0f;
+            PhantomCooldown = 0f;
             Life = LifeState.Alive;
             Tasks.Clear();
             KillCooldown = 0f;

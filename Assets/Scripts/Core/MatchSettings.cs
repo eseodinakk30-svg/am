@@ -21,9 +21,22 @@ namespace Nebula.Core
         [Range(0, 3)] public int ScientistCount = 1;
         [Range(0, 3)] public int EngineerCount = 1;
         [Range(0, 2)] public int ShapeshifterCount = 1;
+        [Range(0, 2)] public int TrackerCount = 1;
+        [Range(0, 2)] public int GuardianCount = 1;
+        [Range(0, 2)] public int NoisemakerCount = 1;
+        [Range(0, 2)] public int PhantomCount = 0;
+
         public float ScientistVitalsSeconds = 10f;
         public float ShapeshiftDuration = 22f;
         public float ShapeshiftCooldown = 30f;
+
+        public float TrackDuration = 20f;
+        public float TrackCooldown = 32f;
+        public float ShieldDuration = 12f;
+        public float ShieldCooldown = 45f;
+        public float PhantomDuration = 12f;
+        public float PhantomCooldown = 38f;
+        public float NoiseMarkerSeconds = 14f;
 
         // -- movement / vision ----------------------------------------------
         public float MoveSpeed = 6.2f;
@@ -79,12 +92,51 @@ namespace Nebula.Core
             PlayerCount = Mathf.Clamp(PlayerCount, 4, 15);
             int maxInf = Mathf.Max(1, (PlayerCount - 1) / 3);
             InfiltratorCount = Mathf.Clamp(InfiltratorCount, 1, Mathf.Min(3, maxInf));
+
+            // Профессий экипажа не может быть больше, чем самого экипажа: иначе
+            // часть ролей молча не раздалась бы, а игрок думал бы, что они в игре.
+            ScientistCount = Mathf.Clamp(ScientistCount, 0, 3);
+            EngineerCount = Mathf.Clamp(EngineerCount, 0, 3);
+            TrackerCount = Mathf.Clamp(TrackerCount, 0, 2);
+            GuardianCount = Mathf.Clamp(GuardianCount, 0, 2);
+            NoisemakerCount = Mathf.Clamp(NoisemakerCount, 0, 2);
+
+            int crew = Mathf.Max(1, PlayerCount - InfiltratorCount);
+            int wanted = ScientistCount + EngineerCount + TrackerCount + GuardianCount + NoisemakerCount;
+            if (wanted > crew)
+            {
+                // срезаем с конца списка, оставляя учёного и инженера как базовые
+                int over = wanted - crew;
+                over = Trim(ref NoisemakerCount, over);
+                over = Trim(ref GuardianCount, over);
+                over = Trim(ref TrackerCount, over);
+                over = Trim(ref EngineerCount, over);
+                Trim(ref ScientistCount, over);
+            }
+
+            ShapeshifterCount = Mathf.Clamp(ShapeshifterCount, 0, 2);
+            PhantomCount = Mathf.Clamp(PhantomCount, 0, 2);
+            if (ShapeshifterCount + PhantomCount > InfiltratorCount)
+            {
+                int over = ShapeshifterCount + PhantomCount - InfiltratorCount;
+                over = Trim(ref PhantomCount, over);
+                Trim(ref ShapeshifterCount, over);
+            }
             CommonTasks = Mathf.Clamp(CommonTasks, 0, 4);
             LongTasks = Mathf.Clamp(LongTasks, 0, 6);
             ShortTasks = Mathf.Clamp(ShortTasks, 0, 10);
             if (CommonTasks + LongTasks + ShortTasks == 0) ShortTasks = 3;
             MoveSpeed = Mathf.Clamp(MoveSpeed, 2f, 12f);
             KillCooldown = Mathf.Clamp(KillCooldown, 10f, 60f);
+        }
+
+        /// <summary>Убавляет счётчик, возвращая остаток непогашенного перебора.</summary>
+        private static int Trim(ref int value, int over)
+        {
+            if (over <= 0) return 0;
+            int cut = Mathf.Min(value, over);
+            value -= cut;
+            return over - cut;
         }
 
         public int TotalTasksPerCrew => CommonTasks + LongTasks + ShortTasks;

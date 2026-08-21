@@ -403,6 +403,7 @@ namespace Nebula.UI
                 foreach (var p in _match.Players)
                 {
                     if (!p.IsAlive || p.InVent) continue;
+                    if (p.IsPhantomHidden) continue;   // фантома не видит и админ-карта
                     if (p.Deck != area.Deck) continue;
                     if (p.RoomId == area.Id) count++;
                 }

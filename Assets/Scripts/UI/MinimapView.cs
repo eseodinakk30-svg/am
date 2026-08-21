@@ -23,6 +23,12 @@ namespace Nebula.UI
         private MatchManager _match;
         private DeckId _deck = DeckId.Upper;
         public DeckId Deck => _deck;
+
+        private Image _trackMarker;      // метка следопыта
+        private Image _noiseMarker;      // вспышка на месте гибели шумовика
+        private Vector3 _noisePos;
+        private DeckId _noiseDeck;
+        private float _noiseLeft;
         private Vector2 _size;
         private bool _showLabels;
 
@@ -51,6 +57,14 @@ namespace Nebula.UI
         {
             UIKit.PanelStretch(_root, "Bg", new Color(0.04f, 0.06f, 0.10f, 0.82f), 14);
             _layer = UIKit.Stretch(_root, "Layer", 8f);
+            _trackMarker = UIKit.Icon(_layer, "Track", Art.Circle(48, 4f), Vector2.zero, new Vector2(20f, 20f),
+                new Color(0.45f, 0.85f, 0.98f));
+            _trackMarker.gameObject.SetActive(false);
+            _noiseMarker = UIKit.Icon(_layer, "Noise", Art.Circle(48, 3f), Vector2.zero, new Vector2(26f, 26f),
+                new Color(0.98f, 0.36f, 0.30f));
+            _noiseMarker.gameObject.SetActive(false);
+            GameEvents.NoiseMark += OnNoiseMark;
+
             _deckLabel = UIKit.Label(_root, "", new Vector2(0f, _size.y * 0.5f - 16f), new Vector2(_size.x, 28f), 18,
                 TextAnchor.MiddleCenter, Art.TextDim);
             Redraw();
@@ -220,6 +234,37 @@ namespace Nebula.UI
                 for (int i = v; i < _ventMarkers.Count; i++) _ventMarkers[i].gameObject.SetActive(false);
             }
 
+            // --- метка следопыта ---
+            if (_trackMarker != null)
+            {
+                var mark = local.TrackedId >= 0 ? _match.PlayerById(local.TrackedId) : null;
+                bool show = mark != null && mark.IsAlive && mark.Deck == _deck;
+                _trackMarker.gameObject.SetActive(show);
+                if (show)
+                {
+                    var mc = StationLayout.WorldToCell(mark.Position);
+                    _trackMarker.rectTransform.anchoredPosition = CellToLocal(mc.x, mc.y);
+                    _trackMarker.color = mark.Color;
+                }
+            }
+
+            // --- вспышка на месте гибели шумовика ---
+            if (_noiseMarker != null)
+            {
+                if (_noiseLeft > 0f) _noiseLeft -= Time.unscaledDeltaTime;
+                bool show = _noiseLeft > 0f && _noiseDeck == _deck;
+                _noiseMarker.gameObject.SetActive(show);
+                if (show)
+                {
+                    var nc = StationLayout.WorldToCell(_noisePos);
+                    _noiseMarker.rectTransform.anchoredPosition = CellToLocal(nc.x, nc.y);
+                    float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 7f);
+                    var c = _noiseMarker.color;
+                    c.a = Mathf.Lerp(0.35f, 1f, pulse);
+                    _noiseMarker.color = c;
+                }
+            }
+
             // sabotage marker
             var sab = sabotage;
             if (sab != null && sab.IsActive && sab.Panels.Count > 0)
@@ -231,6 +276,17 @@ namespace Nebula.UI
                 if (onDeck) _sabotageMarker.rectTransform.anchoredPosition = CellToLocal(area.CenterCell.x, area.CenterCell.y);
             }
             else _sabotageMarker.gameObject.SetActive(false);
+        }
+        private void OnNoiseMark(Vector3 pos, DeckId deck)
+        {
+            _noisePos = pos;
+            _noiseDeck = deck;
+            _noiseLeft = _match != null && _match.Settings != null ? _match.Settings.NoiseMarkerSeconds : 14f;
+        }
+
+        private void OnDestroy()
+        {
+            GameEvents.NoiseMark -= OnNoiseMark;
         }
     }
 }

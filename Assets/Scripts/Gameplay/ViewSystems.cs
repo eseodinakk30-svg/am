@@ -152,6 +152,9 @@ namespace Nebula.Gameplay
                 // видит только живых и бродит по станции в одиночестве
                 if (ghostView && p.IsGhost) visible = _match.Settings == null || _match.Settings.GhostsSeeGhosts;
                 else if (ghostView) visible = true;
+                // фантом: живые не видят его вовсе, мёртвым он виден — как и всё
+                // остальное, что живым знать не положено
+                else if (p.IsPhantomHidden) visible = false;
                 else if (p.InVent) visible = false;
                 else if (p.IsGhost) visible = false;                     // living players never see ghosts
                 else visible = _match.CanSeePlayer(local, p);

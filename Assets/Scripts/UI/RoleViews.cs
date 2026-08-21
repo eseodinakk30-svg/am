@@ -103,6 +103,81 @@ namespace Nebula.UI
         }
     }
 
+    // ============================================================ выбор цели
+    /// <summary>
+    /// Общий список живых участников для умений, которым нужна цель: метка
+    /// следопыта и щит ангела-хранителя. Отличаются только заголовком, цветом и
+    /// тем, что происходит по нажатию.
+    /// </summary>
+    public class TargetPickView : ModalBase
+    {
+        private MatchManager _match;
+        private readonly List<UnityEngine.UI.Button> _buttons = new List<UnityEngine.UI.Button>();
+        private readonly List<Text> _labels = new List<Text>();
+        private readonly List<PlayerState> _targets = new List<PlayerState>();
+        private System.Action<PlayerState> _pick;
+        private System.Func<bool> _allowed;
+
+        public static TargetPickView Create(Transform parent, MatchManager match, string title, Color tint,
+                                            System.Func<bool> allowed, System.Action<PlayerState> pick)
+        {
+            var go = new GameObject("TargetPick_" + title, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var view = go.AddComponent<TargetPickView>();
+            view._match = match;
+            view._pick = pick;
+            view._allowed = allowed;
+            view.BuildUi(title, tint);
+            go.SetActive(false);
+            return view;
+        }
+
+        private void BuildUi(string title, Color tint)
+        {
+            BuildFrame(transform, title, new Vector2(1180f, 720f), Close);
+
+            for (int i = 0; i < 14; i++)
+            {
+                int col = i % 2, row = i / 2;
+                var pos = new Vector2(-280f + col * 560f, 220f - row * 82f);
+                int index = i;
+                var btn = UIKit.Button(Panel, " ", pos, new Vector2(520f, 68f),
+                                       () => Pick(index), tint, 26, 14);
+                _buttons.Add(btn);
+                _labels.Add(btn.GetComponentInChildren<Text>());
+            }
+        }
+
+        public void Open()
+        {
+            var local = _match != null ? _match.Local : null;
+            if (local == null || (_allowed != null && !_allowed())) return;
+
+            _targets.Clear();
+            foreach (var p in _match.Players)
+            {
+                if (p == null || p == local || !p.IsAlive) continue;
+                _targets.Add(p);
+            }
+
+            for (int i = 0; i < _buttons.Count; i++)
+            {
+                bool has = i < _targets.Count;
+                _buttons[i].gameObject.SetActive(has);
+                if (has && _labels[i] != null) _labels[i].text = _targets[i].Label;
+            }
+
+            gameObject.SetActive(true);
+        }
+
+        private void Pick(int index)
+        {
+            if (index < 0 || index >= _targets.Count) { Close(); return; }
+            _pick?.Invoke(_targets[index]);
+            Close();
+        }
+    }
+
     // ============================================================ выбор облика
     public class ShapeshiftView : ModalBase
     {

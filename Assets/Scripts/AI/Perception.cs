@@ -93,6 +93,8 @@ namespace Nebula.AI
             foreach (var other in _match.Players)
             {
                 if (other == self || !other.IsAlive || other.InVent) continue;
+                // фантома не видно вообще — ни глазами, ни в память
+                if (other.IsPhantomHidden) continue;
                 if (!_match.CanSeePlayer(self, other)) continue;
                 VisibleNow.Add(other.Id);
             }
@@ -166,7 +168,7 @@ namespace Nebula.AI
             if (self == null || killer == null || victim == null) return;
             if (self == killer || self == victim) return;
 
-            bool sawKiller = _match.CanSeePlayer(self, killer);
+            bool sawKiller = !killer.IsPhantomHidden && _match.CanSeePlayer(self, killer);
             bool sawVictim = _match.CanSee(self, victim.BodyPosition, victim.BodyDeck);
 
             if (sawKiller && sawVictim && _brain.Rng.Chance(0.94f))

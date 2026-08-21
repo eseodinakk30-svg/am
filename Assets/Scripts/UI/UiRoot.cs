@@ -37,6 +37,8 @@ namespace Nebula.UI
         private VitalsView _vitals;
         private ShapeshiftView _shapeshift;
         private DoorLogView _doorLog;
+        private TargetPickView _trackPick;
+        private TargetPickView _shieldPick;
         private LobbyScreen _lobby;
         private LobbyConsole _console;
         private GameOverScreen _gameOver;
@@ -117,6 +119,14 @@ namespace Nebula.UI
             _vitals = VitalsView.Create(_gameLayer, _match);
             _shapeshift = ShapeshiftView.Create(_gameLayer, _match);
             _doorLog = DoorLogView.Create(_gameLayer, _match);
+            _trackPick = TargetPickView.Create(_gameLayer, _match, "ПОСТАВИТЬ МЕТКУ",
+                new Color(0.16f, 0.30f, 0.40f, 0.95f),
+                () => _match.CanTrack(_match.Local),
+                target => _match.BeginTrack(_match.Local, target));
+            _shieldPick = TargetPickView.Create(_gameLayer, _match, "НАКРЫТЬ ЩИТОМ",
+                new Color(0.34f, 0.31f, 0.16f, 0.95f),
+                () => _match.CanShield(_match.Local),
+                target => _match.BeginShield(_match.Local, target));
             _lobby = LobbyScreen.Create(_gameLayer, _match);
             _console = LobbyConsole.Create(_gameLayer, null);
             _lobby.OnStart = () => { _console.Close(); _match.LaunchFromLobby(); };
@@ -137,6 +147,8 @@ namespace Nebula.UI
             _player.OnRequestVitals = () => _vitals.Open();
             _player.OnRequestShapeshift = () => _shapeshift.Open();
             _player.OnRequestDoorLog = () => _doorLog.Open();
+            _player.OnRequestTrack = () => _trackPick.Open();
+            _player.OnRequestShield = () => _shieldPick.Open();
             _player.OnRequestLobbyConsole = () => _console.Open();
             _player.IsNearLobbyLaptop = () => _lobby.PlayerNearLaptop(_match.Local);
 
@@ -176,6 +188,8 @@ namespace Nebula.UI
                 if (_vitals.IsOpen) _vitals.Close();
                 if (_shapeshift.IsOpen) _shapeshift.Close();
                 if (_doorLog.IsOpen) _doorLog.Close();
+                if (_trackPick.IsOpen) _trackPick.Close();
+                if (_shieldPick.IsOpen) _shieldPick.Close();
             }
         }
 

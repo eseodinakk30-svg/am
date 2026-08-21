@@ -300,13 +300,23 @@ namespace Nebula.Gameplay
             Rng.Shuffle(impostors);
 
             int idx = 0;
-            for (int i = 0; i < Settings.ScientistCount && idx < crew.Count; i++, idx++)
-                crew[idx].Special = SpecialRole.Scientist;
-            for (int i = 0; i < Settings.EngineerCount && idx < crew.Count; i++, idx++)
-                crew[idx].Special = SpecialRole.Engineer;
+            void Deal(int count, SpecialRole role)
+            {
+                for (int i = 0; i < count && idx < crew.Count; i++, idx++)
+                    crew[idx].Special = role;
+            }
 
-            for (int i = 0; i < Settings.ShapeshifterCount && i < impostors.Count; i++)
-                impostors[i].Special = SpecialRole.Shapeshifter;
+            Deal(Settings.ScientistCount, SpecialRole.Scientist);
+            Deal(Settings.EngineerCount, SpecialRole.Engineer);
+            Deal(Settings.TrackerCount, SpecialRole.Tracker);
+            Deal(Settings.GuardianCount, SpecialRole.GuardianAngel);
+            Deal(Settings.NoisemakerCount, SpecialRole.Noisemaker);
+
+            int imp = 0;
+            for (int i = 0; i < Settings.ShapeshifterCount && imp < impostors.Count; i++, imp++)
+                impostors[imp].Special = SpecialRole.Shapeshifter;
+            for (int i = 0; i < Settings.PhantomCount && imp < impostors.Count; i++, imp++)
+                impostors[imp].Special = SpecialRole.Phantom;
         }
 
         // ------------------------------------------------------------------ профессии
@@ -329,7 +339,95 @@ namespace Nebula.Gameplay
                 // заряд показателей жизни медленно восстанавливается
                 if (p.Special == SpecialRole.Scientist && p.VitalsCharge < 1f)
                     p.VitalsCharge = Mathf.Min(1f, p.VitalsCharge + dt / 90f);
+
+                // --- следопыт ---
+                if (p.TrackCooldown > 0f) p.TrackCooldown -= dt;
+                if (p.TrackedId >= 0)
+                {
+                    p.TrackLeft -= dt;
+                    var mark = PlayerById(p.TrackedId);
+                    if (p.TrackLeft <= 0f || !p.IsAlive || mark == null || !mark.IsAlive)
+                    {
+                        p.TrackedId = -1;
+                        p.TrackLeft = 0f;
+                    }
+                }
+
+                // --- ангел-хранитель ---
+                if (p.ShieldCooldown > 0f) p.ShieldCooldown -= dt;
+                if (p.ProtectedLeft > 0f) p.ProtectedLeft -= dt;
+                if (p.ShieldedId >= 0)
+                {
+                    p.ShieldLeft -= dt;
+                    if (p.ShieldLeft <= 0f) { p.ShieldedId = -1; p.ShieldLeft = 0f; }
+                }
+
+                // --- фантом ---
+                if (p.PhantomCooldown > 0f) p.PhantomCooldown -= dt;
+                if (p.PhantomLeft > 0f)
+                {
+                    p.PhantomLeft -= dt;
+                    if (p.PhantomLeft <= 0f || !p.IsAlive) EndPhantom(p);
+                }
             }
+        }
+
+        // ------------------------------------------------------------------ следопыт
+        public bool CanTrack(PlayerState p)
+        {
+            return p != null && p.IsAlive && p.Special == SpecialRole.Tracker
+                   && p.TrackedId < 0 && p.TrackCooldown <= 0f && Phase == MatchPhase.Roaming;
+        }
+
+        public void BeginTrack(PlayerState self, PlayerState target)
+        {
+            if (!CanTrack(self) || target == null || target.Id == self.Id) return;
+            self.TrackedId = target.Id;
+            self.TrackLeft = Settings.TrackDuration;
+            self.TrackCooldown = Settings.TrackCooldown + Settings.TrackDuration;
+            if (self.IsLocal) GameEvents.RaiseAnnounce("Метка поставлена: " + target.Label, 2.4f);
+        }
+
+        // ------------------------------------------------------------------ ангел-хранитель
+        /// <summary>
+        /// Умение призрака: живому нельзя, иначе экипаж получил бы неубиваемого.
+        /// В Among Us ангелом становятся именно после смерти.
+        /// </summary>
+        public bool CanShield(PlayerState p)
+        {
+            return p != null && p.IsGhost && p.Special == SpecialRole.GuardianAngel
+                   && p.ShieldedId < 0 && p.ShieldCooldown <= 0f && Phase == MatchPhase.Roaming;
+        }
+
+        public void BeginShield(PlayerState self, PlayerState target)
+        {
+            if (!CanShield(self) || target == null || !target.IsAlive) return;
+            self.ShieldedId = target.Id;
+            self.ShieldLeft = Settings.ShieldDuration;
+            self.ShieldCooldown = Settings.ShieldCooldown + Settings.ShieldDuration;
+            target.ProtectedLeft = Settings.ShieldDuration;
+            if (self.IsLocal) GameEvents.RaiseAnnounce("Щит на " + target.Label, 2.4f);
+        }
+
+        // ------------------------------------------------------------------ фантом
+        public bool CanPhantom(PlayerState p)
+        {
+            return p != null && p.IsAlive && p.Special == SpecialRole.Phantom
+                   && p.PhantomLeft <= 0f && p.PhantomCooldown <= 0f && Phase == MatchPhase.Roaming;
+        }
+
+        public void BeginPhantom(PlayerState self)
+        {
+            if (!CanPhantom(self)) return;
+            self.PhantomLeft = Settings.PhantomDuration;
+            self.PhantomCooldown = Settings.PhantomCooldown + Settings.PhantomDuration;
+            Audio.SoundBank.Play(Audio.Sfx.Vent, 0.5f);
+        }
+
+        public void EndPhantom(PlayerState self)
+        {
+            if (self == null) return;
+            self.PhantomLeft = 0f;
         }
 
         public bool CanShapeshift(PlayerState p)
@@ -365,11 +463,21 @@ namespace Nebula.Gameplay
         {
             if (p == null) return "";
             if (p.Role == Role.Infiltrator)
-                return p.Special == SpecialRole.Shapeshifter ? "ОБОРОТЕНЬ" : "ДИВЕРСАНТ";
+            {
+                switch (p.Special)
+                {
+                    case SpecialRole.Shapeshifter: return "ОБОРОТЕНЬ";
+                    case SpecialRole.Phantom: return "ФАНТОМ";
+                    default: return "ДИВЕРСАНТ";
+                }
+            }
             switch (p.Special)
             {
                 case SpecialRole.Scientist: return "УЧЁНЫЙ";
                 case SpecialRole.Engineer: return "ИНЖЕНЕР";
+                case SpecialRole.Tracker: return "СЛЕДОПЫТ";
+                case SpecialRole.GuardianAngel: return "АНГЕЛ-ХРАНИТЕЛЬ";
+                case SpecialRole.Noisemaker: return "ШУМОВИК";
                 default: return "ЭКИПАЖ";
             }
         }
@@ -378,15 +486,29 @@ namespace Nebula.Gameplay
         {
             if (p == null) return "";
             if (p.Role == Role.Infiltrator)
-                return p.Special == SpecialRole.Shapeshifter
-                    ? "Убивай, ходи по вентиляции и на время принимай облик любого из экипажа."
-                    : "Убивай экипаж, ходи по вентиляции и ломай станцию так, чтобы никто не понял.";
+            {
+                switch (p.Special)
+                {
+                    case SpecialRole.Shapeshifter:
+                        return "Убивай, ходи по вентиляции и на время принимай облик любого из экипажа.";
+                    case SpecialRole.Phantom:
+                        return "Убивай и ходи по вентиляции. Умеешь ненадолго исчезать — тебя не видят даже вблизи.";
+                    default:
+                        return "Убивай экипаж, ходи по вентиляции и ломай станцию так, чтобы никто не понял.";
+                }
+            }
             switch (p.Special)
             {
                 case SpecialRole.Scientist:
                     return "Выполняй задания. В любой момент можешь посмотреть, кто ещё жив, — заряд тратится.";
                 case SpecialRole.Engineer:
                     return "Выполняй задания. Тебе, единственному из экипажа, открыта вентиляция.";
+                case SpecialRole.Tracker:
+                    return "Выполняй задания. Можешь повесить метку на любого — его точка будет видна на карте.";
+                case SpecialRole.GuardianAngel:
+                    return "Выполняй задания. Погибнув, ты не выбываешь из игры: сможешь прикрывать живых щитом.";
+                case SpecialRole.Noisemaker:
+                    return "Выполняй задания. Если тебя убьют, место гибели вспыхнет на карте у всей станции.";
                 default:
                     return "Выполняй задания и вычисли диверсантов раньше, чем они вычислят вас.";
             }
@@ -577,6 +699,24 @@ namespace Nebula.Gameplay
         {
             if (!CanKill(killer, victim)) return false;
 
+            // Щит ангела-хранителя: удар срывается, откат убийства всё равно
+            // тратится, и обе стороны это видят — предатель понимает, что в
+            // матче есть ангел, а экипаж получает подтверждение вслепую.
+            if (victim.ProtectedLeft > 0f)
+            {
+                killer.KillCooldown = Settings.KillCooldown * 0.5f;
+                victim.ProtectedLeft = 0f;
+                foreach (var g in Players)
+                    if (g.Special == SpecialRole.GuardianAngel && g.ShieldedId == victim.Id)
+                    { g.ShieldedId = -1; g.ShieldLeft = 0f; }
+
+                Audio.SoundBank.Play(Audio.Sfx.Repair, 0.9f);
+                if (killer.IsLocal) GameEvents.RaiseAnnounce("Удар отражён щитом", 2.6f);
+                else if (victim.IsLocal) GameEvents.RaiseAnnounce("Тебя прикрыл щит ангела", 3f);
+                GameEvents.RaiseShieldBroke(victim);
+                return false;
+            }
+
             killer.KillCooldown = Settings.KillCooldown;
             victim.Life = LifeState.Murdered;
             victim.DeathTime = MatchTime;
@@ -598,6 +738,16 @@ namespace Nebula.Gameplay
                 va.PlayDeath();
                 va.BecomeGhost();
                 va.Motor.Teleport(victim.Position);
+            }
+
+            // Шумовик: место его гибели вспыхивает на карте у всех. Он не знает,
+            // кто его убил, и никому этого не сообщает — только «здесь и сейчас
+            // кого-то убили», чего в обычной игре не узнать до находки тела.
+            if (victim.Special == SpecialRole.Noisemaker)
+            {
+                GameEvents.RaiseNoiseMark(victim.BodyPosition, victim.BodyDeck);
+                GameEvents.RaiseAnnounce("Сигнал бедствия: " + StationLayout.NameOf(victim.BodyRoomId), 3.4f);
+                Audio.SoundBank.Play(Audio.Sfx.Alarm, 0.55f);
             }
 
             _bodies.Add(DeadBody.Spawn(victim, _worldRoot));
@@ -988,6 +1138,10 @@ namespace Nebula.Gameplay
         {
             if (target == null) return false;
             if (target.InVent && (observer == null || !observer.IsGhost)) return false;
+            // Фантом невидим для живых. Мёртвым он виден: призракам и так открыто
+            // всё, а сам себя он, разумеется, видит.
+            if (target.IsPhantomHidden && observer != null
+                && !observer.IsGhost && observer.Id != target.Id) return false;
             return CanSee(observer, target.Position, target.Deck);
         }
 

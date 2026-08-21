@@ -582,9 +582,53 @@ namespace Nebula.UI
 
             bool scientist = local.Special == SpecialRole.Scientist;
             bool shifter = local.Special == SpecialRole.Shapeshifter;
-            bool show = alive && (scientist || shifter);
+            bool tracker = local.Special == SpecialRole.Tracker;
+            bool phantom = local.Special == SpecialRole.Phantom;
+            // ангел-хранитель — единственное умение, которое работает после смерти
+            bool angel = local.Special == SpecialRole.GuardianAngel && local.IsGhost;
+
+            bool show = (alive && (scientist || shifter || tracker || phantom)) || angel;
             _roleButton.gameObject.SetActive(show);
             if (!show) return;
+
+            if (tracker)
+            {
+                _roleButton.color = new Color(0.24f, 0.52f, 0.66f, 0.92f);
+                _roleButtonLabel.text = local.TrackedId >= 0
+                    ? "МЕТКА " + Mathf.CeilToInt(local.TrackLeft)
+                    : local.TrackCooldown > 0.05f
+                        ? Mathf.CeilToInt(local.TrackCooldown).ToString()
+                        : "МЕТКА";
+                SetInteractable(_roleButton, _match.CanTrack(local));
+                return;
+            }
+
+            if (angel)
+            {
+                _roleButton.color = new Color(0.62f, 0.58f, 0.30f, 0.92f);
+                _roleButtonLabel.text = local.ShieldedId >= 0
+                    ? "ЩИТ " + Mathf.CeilToInt(local.ShieldLeft)
+                    : local.ShieldCooldown > 0.05f
+                        ? Mathf.CeilToInt(local.ShieldCooldown).ToString()
+                        : "ЩИТ";
+                SetInteractable(_roleButton, _match.CanShield(local));
+                return;
+            }
+
+            if (phantom)
+            {
+                bool hidden = local.IsPhantomHidden;
+                _roleButton.color = hidden
+                    ? new Color(0.30f, 0.34f, 0.46f, 0.92f)
+                    : new Color(0.38f, 0.26f, 0.56f, 0.92f);
+                _roleButtonLabel.text = hidden
+                    ? "ТЕНЬ " + Mathf.CeilToInt(local.PhantomLeft)
+                    : local.PhantomCooldown > 0.05f
+                        ? Mathf.CeilToInt(local.PhantomCooldown).ToString()
+                        : "ТЕНЬ";
+                SetInteractable(_roleButton, _match.CanPhantom(local));
+                return;
+            }
 
             if (scientist)
             {

@@ -40,6 +40,8 @@ namespace Nebula.Gameplay
         public System.Action OnRequestShapeshift;
         public System.Action OnRequestLobbyConsole;
         public System.Action OnRequestDoorLog;
+        public System.Action OnRequestTrack;
+        public System.Action OnRequestShield;
         public System.Func<bool> IsNearLobbyLaptop;
 
         public PlayerState Self => _self;
@@ -240,18 +242,33 @@ namespace Nebula.Gameplay
 
         public void OpenSabotage() => OnRequestSabotageMenu?.Invoke();
 
-        /// <summary>Умение профессии: у учёного — показатели жизни, у оборотня — выбор облика.</summary>
+        /// <summary>Умение профессии. У ролей с выбором цели кнопка открывает окно.</summary>
         public void UseRoleAbility()
         {
             if (_self == null) return;
-            if (_self.Special == SpecialRole.Scientist)
+            switch (_self.Special)
             {
-                if (_self.VitalsCharge > 0.05f) OnRequestVitals?.Invoke();
-            }
-            else if (_self.Special == SpecialRole.Shapeshifter)
-            {
-                if (_self.DisguisedAs >= 0) _match.EndShapeshift(_self);
-                else if (_match.CanShapeshift(_self)) OnRequestShapeshift?.Invoke();
+                case SpecialRole.Scientist:
+                    if (_self.VitalsCharge > 0.05f) OnRequestVitals?.Invoke();
+                    break;
+
+                case SpecialRole.Shapeshifter:
+                    if (_self.DisguisedAs >= 0) _match.EndShapeshift(_self);
+                    else if (_match.CanShapeshift(_self)) OnRequestShapeshift?.Invoke();
+                    break;
+
+                case SpecialRole.Tracker:
+                    if (_match.CanTrack(_self)) OnRequestTrack?.Invoke();
+                    break;
+
+                case SpecialRole.GuardianAngel:
+                    if (_match.CanShield(_self)) OnRequestShield?.Invoke();
+                    break;
+
+                case SpecialRole.Phantom:
+                    if (_self.IsPhantomHidden) _match.EndPhantom(_self);
+                    else if (_match.CanPhantom(_self)) _match.BeginPhantom(_self);
+                    break;
             }
         }
 

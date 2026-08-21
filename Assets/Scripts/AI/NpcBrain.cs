@@ -632,6 +632,7 @@ namespace Nebula.AI
                 foreach (var p in Match.Players)
                 {
                     if (!p.IsAlive || p.Id == Owner.Id) continue;
+                    if (p.IsPhantomHidden) continue;   // фантома не берёт и камера
                     if (p.RoomId != cam.RoomId) continue;
                     // на записи виден облик, а не носитель — как и при личной встрече
                     int seen = p.DisguisedAs >= 0 ? p.DisguisedAs : p.Id;

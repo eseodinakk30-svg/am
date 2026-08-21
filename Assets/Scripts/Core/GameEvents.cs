@@ -47,6 +47,8 @@ namespace Nebula.Core
         public static event Action<PlayerState, TaskInstance, int> TaskStageDone; // player, task, stageIndex
         public static event Action<float> TaskProgressChanged;                    // 0..1 crew task bar
         public static event Action<string, float> Announce;                       // toast text, seconds
+        public static event Action<PlayerState> ShieldBroke;                      // щит ангела принял удар
+        public static event Action<Vector3, DeckId> NoiseMark;                    // шумовик погиб здесь
 
         // ------------------------------------------------------------------
         public static void RaisePhaseChanged(MatchPhase p) => PhaseChanged?.Invoke(p);
@@ -73,6 +75,8 @@ namespace Nebula.Core
         public static void RaiseTaskStageDone(PlayerState p, TaskInstance t, int stage) => TaskStageDone?.Invoke(p, t, stage);
         public static void RaiseTaskProgressChanged(float v) => TaskProgressChanged?.Invoke(v);
         public static void RaiseAnnounce(string text, float seconds = 3f) => Announce?.Invoke(text, seconds);
+        public static void RaiseShieldBroke(PlayerState victim) => ShieldBroke?.Invoke(victim);
+        public static void RaiseNoiseMark(Vector3 pos, DeckId deck) => NoiseMark?.Invoke(pos, deck);
 
         /// <summary>Drop every subscriber - called when a match is torn down.</summary>
         public static void ClearAll()
@@ -83,6 +87,7 @@ namespace Nebula.Core
             MeetingStarted = null; VoteCast = null; Ejected = null; MeetingEnded = null; Chat = null;
             SabotageStarted = null; SabotageResolved = null; DoorsClosed = null;
             VisionFactorChanged = null; TaskStageDone = null; TaskProgressChanged = null; Announce = null;
+            ShieldBroke = null; NoiseMark = null;
         }
     }
 

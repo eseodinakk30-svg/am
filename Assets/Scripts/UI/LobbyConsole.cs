@@ -37,50 +37,86 @@ namespace Nebula.UI
             UIKit.Label(Panel, "ОБЛИК", new Vector2(-350f, 300f), new Vector2(560f, 40f), 28,
                         TextAnchor.MiddleLeft, Art.AccentWarm, FontStyle.Bold);
 
-            Cycler("Цвет", new Vector2(-350f, 240f), ColorBank.SuitNames.Length,
+            Cycler(Panel, "Цвет", new Vector2(-350f, 240f), ColorBank.SuitNames.Length,
                    () => profile.ColorIndex, v => profile.ColorIndex = v, i => ColorBank.SuitNames[i]);
-            Cycler("Костюм", new Vector2(-350f, 172f), CosmeticBank.Outfits.Length,
+            Cycler(Panel, "Костюм", new Vector2(-350f, 172f), CosmeticBank.Outfits.Length,
                    () => profile.OutfitIndex, v => profile.OutfitIndex = v, i => CosmeticBank.Outfits[i]);
-            Cycler("Шапка", new Vector2(-350f, 104f), CosmeticBank.Hats.Length,
+            Cycler(Panel, "Шапка", new Vector2(-350f, 104f), CosmeticBank.Hats.Length,
                    () => profile.HatIndex, v => profile.HatIndex = v, i => CosmeticBank.Hats[i]);
-            Cycler("Аксессуар", new Vector2(-350f, 36f), CosmeticBank.Accessories.Length,
+            Cycler(Panel, "Аксессуар", new Vector2(-350f, 36f), CosmeticBank.Accessories.Length,
                    () => profile.AccessoryIndex, v => profile.AccessoryIndex = v, i => CosmeticBank.Accessories[i]);
-            Cycler("Эффект", new Vector2(-350f, -32f), CosmeticBank.Trails.Length,
+            Cycler(Panel, "Эффект", new Vector2(-350f, -32f), CosmeticBank.Trails.Length,
                    () => profile.TrailIndex, v => profile.TrailIndex = v, i => CosmeticBank.Trails[i]);
 
             UIKit.Label(Panel, "Облик применится к следующему матчу.", new Vector2(-350f, -104f),
                         new Vector2(560f, 40f), 20, TextAnchor.MiddleLeft, Art.TextDim);
 
             // ---------------------------------------------------------- правила
-            UIKit.Label(Panel, "ПРАВИЛА", new Vector2(350f, 300f), new Vector2(560f, 40f), 28,
+            // Ролей стало много, и в фиксированную колонку они больше не влезают:
+            // список правил прокручивается.
+            UIKit.Label(Panel, "ПРАВИЛА", new Vector2(350f, 340f), new Vector2(560f, 40f), 28,
                         TextAnchor.MiddleLeft, Art.AccentWarm, FontStyle.Bold);
 
-            IntRow("Участников", new Vector2(350f, 240f), 4, 15,
-                   () => rules.PlayerCount, v => rules.PlayerCount = v);
-            IntRow("Диверсантов", new Vector2(350f, 180f), 1, 3,
-                   () => rules.InfiltratorCount, v => rules.InfiltratorCount = v);
+            var rulesArea = UIKit.Node(Panel, "RulesArea", new Vector2(350f, -20f), new Vector2(600f, 660f));
+            UIKit.ScrollViewStretch(rulesArea, "RulesScroll", out var rules_content);
 
-            Cycler("Моя роль", new Vector2(350f, 120f), 3,
+            float rowY = -34f;
+            const float Pitch = 60f;
+            Vector2 NextRow()
+            {
+                var pos = new Vector2(0f, rowY);
+                rowY -= Pitch;
+                return pos;
+            }
+            void Header(string text)
+            {
+                UIKit.Label(rules_content, text, new Vector2(-40f, rowY + 6f), new Vector2(420f, 34f), 21,
+                            TextAnchor.MiddleLeft, Art.Accent, FontStyle.Bold);
+                rowY -= 44f;
+            }
+
+            IntRow(rules_content, "Участников", NextRow(), 4, 15,
+                   () => rules.PlayerCount, v => rules.PlayerCount = v);
+            IntRow(rules_content, "Диверсантов", NextRow(), 1, 3,
+                   () => rules.InfiltratorCount, v => rules.InfiltratorCount = v);
+            Cycler(rules_content, "Моя роль", NextRow(), 3,
                    () => (int)rules.MyRole, v => rules.MyRole = (RoleWish)v,
                    i => i == 0 ? "как повезёт" : i == 1 ? "всегда экипаж" : "всегда диверсант");
 
-            IntRow("Учёных", new Vector2(350f, 60f), 0, 3,
+            Header("РОЛИ ЭКИПАЖА");
+            IntRow(rules_content, "Учёных", NextRow(), 0, 3,
                    () => rules.ScientistCount, v => rules.ScientistCount = v);
-            IntRow("Инженеров", new Vector2(350f, 0f), 0, 3,
+            IntRow(rules_content, "Инженеров", NextRow(), 0, 3,
                    () => rules.EngineerCount, v => rules.EngineerCount = v);
-            IntRow("Оборотней", new Vector2(350f, -60f), 0, 2,
+            IntRow(rules_content, "Следопытов", NextRow(), 0, 2,
+                   () => rules.TrackerCount, v => rules.TrackerCount = v);
+            IntRow(rules_content, "Ангелов-хранителей", NextRow(), 0, 2,
+                   () => rules.GuardianCount, v => rules.GuardianCount = v);
+            IntRow(rules_content, "Шумовиков", NextRow(), 0, 2,
+                   () => rules.NoisemakerCount, v => rules.NoisemakerCount = v);
+
+            Header("РОЛИ ДИВЕРСАНТОВ");
+            IntRow(rules_content, "Оборотней", NextRow(), 0, 2,
                    () => rules.ShapeshifterCount, v => rules.ShapeshifterCount = v);
+            IntRow(rules_content, "Фантомов", NextRow(), 0, 2,
+                   () => rules.PhantomCount, v => rules.PhantomCount = v);
 
-            FloatRow("Перезарядка убийства", new Vector2(350f, -120f), 10f, 60f, 1f,
+            Header("МАТЧ");
+            FloatRow(rules_content, "Перезарядка убийства", NextRow(), 10f, 60f, 1f,
                      () => rules.KillCooldown, v => rules.KillCooldown = v, "с");
-            FloatRow("Скорость", new Vector2(350f, -180f), 3.5f, 9f, 0.1f,
+            FloatRow(rules_content, "Скорость", NextRow(), 3.5f, 9f, 0.1f,
                      () => rules.MoveSpeed, v => rules.MoveSpeed = v, "");
-            IntRow("Коротких заданий", new Vector2(350f, -240f), 0, 8,
+            IntRow(rules_content, "Коротких заданий", NextRow(), 0, 8,
                    () => rules.ShortTasks, v => rules.ShortTasks = v);
-            IntRow("Долгих заданий", new Vector2(350f, -300f), 0, 6,
+            IntRow(rules_content, "Долгих заданий", NextRow(), 0, 6,
                    () => rules.LongTasks, v => rules.LongTasks = v);
+            IntRow(rules_content, "Общих заданий", NextRow(), 0, 4,
+                   () => rules.CommonTasks, v => rules.CommonTasks = v);
 
-            Cycler("Сложность ИИ", new Vector2(-350f, -180f), 5,
+            // высота содержимого = сколько строк реально выложили
+            rules_content.sizeDelta = new Vector2(rules_content.sizeDelta.x, Mathf.Abs(rowY) + 40f);
+
+            Cycler(Panel, "Сложность ИИ", new Vector2(-350f, -180f), 5,
                    () => (int)rules.AiDifficulty, v => rules.AiDifficulty = (Difficulty)v,
                    i => DifficultyName(i));
         }
@@ -111,12 +147,12 @@ namespace Nebula.UI
         }
 
         // ------------------------------------------------------------------ строки
-        private void Cycler(string label, Vector2 pos, int count, Func<int> get, Action<int> set, Func<int, string> nameOf)
+        private void Cycler(Transform host, string label, Vector2 pos, int count, Func<int> get, Action<int> set, Func<int, string> nameOf)
         {
             if (count <= 0) return;
-            UIKit.Label(Panel, label, pos + new Vector2(-260f, 0f), new Vector2(250f, 40f), 22,
+            UIKit.Label(host, label, pos + new Vector2(-260f, 0f), new Vector2(250f, 40f), 22,
                         TextAnchor.MiddleLeft, Art.TextDim);
-            var value = UIKit.Label(Panel, nameOf(Mathf.Abs(get()) % count), pos + new Vector2(60f, 0f),
+            var value = UIKit.Label(host, nameOf(Mathf.Abs(get()) % count), pos + new Vector2(60f, 0f),
                                     new Vector2(240f, 40f), 22, TextAnchor.MiddleCenter, Art.TextMain, FontStyle.Bold);
 
             void Step(int delta)
@@ -127,15 +163,15 @@ namespace Nebula.UI
                 GameSettings.Save();
             }
 
-            UIKit.Button(Panel, "◀", pos + new Vector2(-70f, 0f), new Vector2(56f, 48f), () => Step(-1), Art.PanelSoft, 22, 12);
-            UIKit.Button(Panel, "▶", pos + new Vector2(190f, 0f), new Vector2(56f, 48f), () => Step(1), Art.PanelSoft, 22, 12);
+            UIKit.Button(host, "◀", pos + new Vector2(-70f, 0f), new Vector2(56f, 48f), () => Step(-1), Art.PanelSoft, 22, 12);
+            UIKit.Button(host, "▶", pos + new Vector2(190f, 0f), new Vector2(56f, 48f), () => Step(1), Art.PanelSoft, 22, 12);
         }
 
-        private void IntRow(string label, Vector2 pos, int min, int max, Func<int> get, Action<int> set)
+        private void IntRow(Transform host, string label, Vector2 pos, int min, int max, Func<int> get, Action<int> set)
         {
-            UIKit.Label(Panel, label, pos + new Vector2(-260f, 0f), new Vector2(250f, 40f), 22,
+            UIKit.Label(host, label, pos + new Vector2(-260f, 0f), new Vector2(250f, 40f), 22,
                         TextAnchor.MiddleLeft, Art.TextDim);
-            var value = UIKit.Label(Panel, get().ToString(), pos + new Vector2(60f, 0f),
+            var value = UIKit.Label(host, get().ToString(), pos + new Vector2(60f, 0f),
                                     new Vector2(240f, 40f), 22, TextAnchor.MiddleCenter, Art.TextMain, FontStyle.Bold);
 
             void Step(int delta)
@@ -146,16 +182,16 @@ namespace Nebula.UI
                 GameSettings.Save();
             }
 
-            UIKit.Button(Panel, "−", pos + new Vector2(-70f, 0f), new Vector2(56f, 48f), () => Step(-1), Art.PanelSoft, 24, 12);
-            UIKit.Button(Panel, "+", pos + new Vector2(190f, 0f), new Vector2(56f, 48f), () => Step(1), Art.PanelSoft, 24, 12);
+            UIKit.Button(host, "−", pos + new Vector2(-70f, 0f), new Vector2(56f, 48f), () => Step(-1), Art.PanelSoft, 24, 12);
+            UIKit.Button(host, "+", pos + new Vector2(190f, 0f), new Vector2(56f, 48f), () => Step(1), Art.PanelSoft, 24, 12);
         }
 
-        private void FloatRow(string label, Vector2 pos, float min, float max, float step,
+        private void FloatRow(Transform host, string label, Vector2 pos, float min, float max, float step,
                               Func<float> get, Action<float> set, string suffix)
         {
-            UIKit.Label(Panel, label, pos + new Vector2(-260f, 0f), new Vector2(250f, 40f), 22,
+            UIKit.Label(host, label, pos + new Vector2(-260f, 0f), new Vector2(250f, 40f), 22,
                         TextAnchor.MiddleLeft, Art.TextDim);
-            var value = UIKit.Label(Panel, Format(get(), suffix), pos + new Vector2(60f, 0f),
+            var value = UIKit.Label(host, Format(get(), suffix), pos + new Vector2(60f, 0f),
                                     new Vector2(240f, 40f), 22, TextAnchor.MiddleCenter, Art.TextMain, FontStyle.Bold);
 
             void Step(float delta)
@@ -166,8 +202,8 @@ namespace Nebula.UI
                 GameSettings.Save();
             }
 
-            UIKit.Button(Panel, "−", pos + new Vector2(-70f, 0f), new Vector2(56f, 48f), () => Step(-step), Art.PanelSoft, 24, 12);
-            UIKit.Button(Panel, "+", pos + new Vector2(190f, 0f), new Vector2(56f, 48f), () => Step(step), Art.PanelSoft, 24, 12);
+            UIKit.Button(host, "−", pos + new Vector2(-70f, 0f), new Vector2(56f, 48f), () => Step(-step), Art.PanelSoft, 24, 12);
+            UIKit.Button(host, "+", pos + new Vector2(190f, 0f), new Vector2(56f, 48f), () => Step(step), Art.PanelSoft, 24, 12);
         }
 
         private static string Format(float v, string suffix)
