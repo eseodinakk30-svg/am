@@ -73,16 +73,19 @@ namespace Nebula.UI
             UIKit.RowLabel(titleBox, "станция N-9 · найди предателя, пока он не нашёл тебя",
                 40f, 40f, -70f, 40f, 24, TextAnchor.MiddleCenter, Art.TextDim);
 
-            var menuBox = UIKit.Region(_front, "Buttons", new Vector2(0.30f, 0.12f), new Vector2(0.70f, 0.66f));
-            UIKit.ButtonIn(UIKit.Row(menuBox, "Play", 0f, 0f, 150f, 116f), "ИГРАТЬ",
+            // Кнопок стало пять. При прежнем шаге в 98 единиц нижняя уезжала за
+            // границу области на строку статуса, поэтому область растянута, а шаг
+            // ужат: пять кнопок укладываются ровно внутрь.
+            var menuBox = UIKit.Region(_front, "Buttons", new Vector2(0.28f, 0.05f), new Vector2(0.72f, 0.67f));
+            UIKit.ButtonIn(UIKit.Row(menuBox, "Play", 0f, 0f, 150f, 104f), "ИГРАТЬ",
                 () => OnStartSolo?.Invoke(1), new Color(0.20f, 0.62f, 0.42f, 0.97f), 40, 22);
-            UIKit.ButtonIn(UIKit.Row(menuBox, "Online", 0f, 0f, 22f, 86f), "ПО СЕТИ",
+            UIKit.ButtonIn(UIKit.Row(menuBox, "Online", 0f, 0f, 40f, 80f), "ПО СЕТИ",
                 () => ShowTab("СЕТЬ"), new Color(0.20f, 0.45f, 0.68f, 0.96f), 30, 18);
-            UIKit.ButtonIn(UIKit.Row(menuBox, "Look", 0f, 0f, -76f, 86f), "ПЕРСОНАЖ",
+            UIKit.ButtonIn(UIKit.Row(menuBox, "Look", 0f, 0f, -50f, 80f), "ПЕРСОНАЖ",
                 () => ShowTab("ПЕРСОНАЖ"), new Color(0.36f, 0.28f, 0.55f, 0.96f), 30, 18);
-            UIKit.ButtonIn(UIKit.Row(menuBox, "Help", 0f, 0f, -174f, 86f), "КАК ИГРАТЬ",
+            UIKit.ButtonIn(UIKit.Row(menuBox, "Help", 0f, 0f, -140f, 80f), "КАК ИГРАТЬ",
                 () => ShowTab("КАК ИГРАТЬ"), new Color(0.52f, 0.40f, 0.18f, 0.96f), 30, 18);
-            UIKit.ButtonIn(UIKit.Row(menuBox, "Options", 0f, 0f, -272f, 86f), "НАСТРОЙКИ",
+            UIKit.ButtonIn(UIKit.Row(menuBox, "Options", 0f, 0f, -230f, 80f), "НАСТРОЙКИ",
                 () => ShowTab("НАСТРОЙКИ"), new Color(0.22f, 0.26f, 0.34f, 0.96f), 30, 18);
 
             // ---- страница с разделами --------------------------------------
@@ -333,6 +336,11 @@ namespace Nebula.UI
                 m.ConfirmEjects, v => m.ConfirmEjects = v);
             UIKit.Toggle(tab, "Анонимное голосование", new Vector2(360f, -215f), new Vector2(560f, 46f),
                 m.AnonymousVotes, v => m.AnonymousVotes = v);
+
+            // Роли настраиваются только в комнате, и без подсказки это неочевидно:
+            // здесь их нет, а игрок ищет именно тут.
+            UIKit.Label(tab, "Состав ролей — в консоли комнаты: подойди к ноутбуку в столовой и нажми ДЕЙСТВИЕ.",
+                new Vector2(0f, -282f), new Vector2(1160f, 40f), 21, TextAnchor.MiddleCenter, Art.TextDim);
         }
 
         private void AddIntSlider(Transform parent, string label, Vector2 pos, int min, int max, int value, System.Action<int> apply)
