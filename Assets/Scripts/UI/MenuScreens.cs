@@ -207,29 +207,46 @@ namespace Nebula.UI
 
             float y = -18f;
 
+            // Строки тянутся по ширине вкладки, а не заданы числом: на узком экране
+            // фиксированные 1200 единиц вылезали бы за края и обрезались маской.
+            RectTransform RowAt(string name, float height)
+            {
+                var rt = UIKit.Node(content, name, Vector2.zero, new Vector2(0f, height));
+                rt.anchorMin = new Vector2(0f, 1f);
+                rt.anchorMax = new Vector2(1f, 1f);
+                rt.pivot = new Vector2(0.5f, 1f);
+                rt.offsetMin = new Vector2(28f, 0f);
+                rt.offsetMax = new Vector2(-28f, 0f);
+                rt.sizeDelta = new Vector2(rt.sizeDelta.x, height);
+                rt.anchoredPosition = new Vector2(0f, y);
+                return rt;
+            }
+
             void Section(string title)
             {
-                var rt = UIKit.Node(content, "H", Vector2.zero, new Vector2(1200f, 44f));
-                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
-                rt.pivot = new Vector2(0.5f, 1f);
-                rt.anchoredPosition = new Vector2(0f, y);
-                UIKit.Label(rt, title, Vector2.zero, new Vector2(1180f, 40f), 28,
-                            TextAnchor.MiddleLeft, Art.AccentWarm, FontStyle.Bold);
+                var rt = RowAt("H", 44f);
+                var label = UIKit.Label(rt, title, Vector2.zero, Vector2.zero, 28,
+                                        TextAnchor.MiddleLeft, Art.AccentWarm, FontStyle.Bold);
+                var srt = label.rectTransform;
+                srt.anchorMin = Vector2.zero;
+                srt.anchorMax = Vector2.one;
+                srt.offsetMin = Vector2.zero;
+                srt.offsetMax = Vector2.zero;
                 y -= 52f;
             }
 
             void Para(string text)
             {
-                var rt = UIKit.Node(content, "P", Vector2.zero, new Vector2(1200f, 30f));
-                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
-                rt.pivot = new Vector2(0.5f, 1f);
+                var rt = RowAt("P", 30f);
 
-                var label = UIKit.Label(rt, text, Vector2.zero, new Vector2(1180f, 30f), 22,
+                var label = UIKit.Label(rt, text, Vector2.zero, Vector2.zero, 22,
                                         TextAnchor.UpperLeft, Art.TextMain);
                 label.horizontalOverflow = HorizontalWrapMode.Wrap;
                 label.verticalOverflow = VerticalWrapMode.Overflow;
 
-                // высоту меряем уже по выставленной ширине, иначе абзацы наползают
+                // Ширину выставляем до замера: preferredHeight считается по текущей
+                // ширине прямоугольника, и если мерить раньше, текст переносится
+                // задним числом и абзацы наползают друг на друга.
                 var lrt = label.rectTransform;
                 lrt.anchorMin = new Vector2(0f, 1f);
                 lrt.anchorMax = new Vector2(1f, 1f);
@@ -240,8 +257,9 @@ namespace Nebula.UI
 
                 float h = Mathf.Max(30f, label.preferredHeight);
                 lrt.sizeDelta = new Vector2(lrt.sizeDelta.x, h);
-                rt.sizeDelta = new Vector2(1200f, h);
-                rt.anchoredPosition = new Vector2(0f, y);
+                // трогаем только высоту: у растянутого прямоугольника sizeDelta.x —
+                // это добавка к ширине родителя, а не сама ширина
+                rt.sizeDelta = new Vector2(rt.sizeDelta.x, h);
                 y -= h + 10f;
             }
 
